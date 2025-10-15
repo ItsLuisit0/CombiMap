@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block title %}Inicio{% endblock %}
+
+{% block content %}
+    <!-- Hero Section -->
+    <main class="pt-32 pb-20 hero-bg">
+        <div class="container mx-auto px-6 text-center">
+            <h1 class="text-5xl font-extrabold text-white mb-4">La forma más fácil de moverte por Teziutlán.</h1>
+            <p class="text-xl text-gray-200 mb-8 max-w-3xl mx-auto">No más dudas. Encuentra tu ruta, consulta paradas y planifica tu viaje en combi de manera rápida y sencilla.</p>
+            <a href="/map" class="bg-blue-600 text-white font-bold py-4 px-8 rounded-full text-lg hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105">
+                Ir al Mapa Interactivo
+            </a>
+        </div>
+    </main>
+
+    <!-- Features Section -->
+    <section class="py-20 bg-white">
+        <div class="container mx-auto px-6">
+            <h2 class="text-3xl font-bold text-center mb-12">¿Qué puedes hacer?</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-12 text-center">
+                <div class="feature bg-gray-50 p-8 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
+                    <div class="text-blue-600 mb-4">
+                        <i class="fa-solid fa-map-location-dot fa-3x"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Visualiza las Rutas</h3>
+                    <p class="text-gray-600">Explora el trazado completo de todas las rutas de combi sobre un mapa interactivo.</p>
+                </div>
+                <div class="feature bg-gray-50 p-8 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
+                    <div class="text-blue-600 mb-4">
+                        <i class="fa-solid fa-magnifying-glass-location fa-3x"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Busca tu Trayecto</h3>
+                    <p class="text-gray-600">Introduce tu origen y destino y deja que te sugiramos la mejor ruta para llegar.</p>
+                </div>
+                <div class="feature bg-gray-50 p-8 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
+                    <div class="text-blue-600 mb-4">
+                        <i class="fa-solid fa-circle-info fa-3x"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Consulta Información</h3>
+                    <p class="text-gray-600">Obtén detalles de cada ruta, como sus paradas clave, horarios y costos aproximados.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+{% endblock %}
