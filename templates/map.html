@@ -7,34 +7,13 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 <style>
-    /* Custom Leaflet Popup Styles */
-    .leaflet-popup-content-wrapper {
-        background-color: #fff;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    .leaflet-popup-content {
-        margin: 12px !important;
-        font-size: 14px;
-        font-weight: 600;
-        color: #333;
-    }
-    .leaflet-popup-tip-container {
-        display: none; /* Hide the default tip */
-    }
-    .leaflet-popup-close-button {
-        color: #333 !important;
-        padding: 8px !important;
-    }
-    .leaflet-popup-close-button:hover {
-        background-color: #f3f4f6;
-    }
-    .fade-enter-active, .fade-leave-active {
-        transition: opacity 0.5s;
-    }
-    .fade-enter, .fade-leave-to {
-        opacity: 0;
-    }
+    .leaflet-popup-content-wrapper { background-color: #fff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .leaflet-popup-content { margin: 12px !important; font-size: 14px; font-weight: 600; color: #333; }
+    .leaflet-popup-tip-container { display: none; }
+    .leaflet-popup-close-button { color: #333 !important; padding: 8px !important; }
+    .leaflet-popup-close-button:hover { background-color: #f3f4f6; }
+    .fade-enter-active, .fade-leave-active { transition: opacity 0.5s; }
+    .fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>
 {% endblock %}
 
@@ -54,9 +33,7 @@
     <div class="container mx-auto px-4 sm:px-6 lg:px-8">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            <!-- Left Control Panel -->
-            <div class="lg:col-span-1 bg-white rounded-2xl shadow-lg p-6 h-max space-y-6 transform transition-all duration-500">
-                <!-- Location Card -->
+            <div class="lg:col-span-1 bg-white rounded-2xl shadow-lg p-6 h-max space-y-6">
                 <div class="border border-gray-200 rounded-xl p-4">
                     <h2 class="font-bold text-xl mb-2 flex items-center"><i class="fa-solid fa-street-view text-green-500 mr-2"></i>Tu Ubicación</h2>
                     <div class="bg-gray-50 p-3 rounded-lg text-sm">
@@ -65,7 +42,6 @@
                     </div>
                 </div>
 
-                <!-- Stop Search Card -->
                 <div class="border border-gray-200 rounded-xl p-4">
                     <h2 class="font-bold text-xl mb-2 flex items-center"><i class="fa-solid fa-magnifying-glass text-purple-500 mr-2"></i>Buscar Parada</h2>
                     <div class="relative">
@@ -80,7 +56,6 @@
                     </div>
                 </div>
 
-                <!-- All Routes Card -->
                 <div class="border border-gray-200 rounded-xl p-4">
                     <h2 class="font-bold text-xl mb-2 flex items-center"><i class="fa-solid fa-route text-blue-500 mr-2"></i>Todas las Rutas</h2>
                     <div v-if="allRoutes.length > 0" class="space-y-2">
@@ -89,26 +64,22 @@
                                 <h3 class="font-semibold flex items-center"><span class="w-4 h-4 rounded-full mr-3" :style="{ backgroundColor: route.color }"></span>{{ route.name }}</h3>
                                 <i class="fa-solid transition-transform duration-300" :class="{'fa-chevron-down': expandedRouteId !== route.id, 'fa-chevron-up': expandedRouteId === route.id}"></i>
                             </div>
-                            <div x-data="{ open: false }" x-init="$watch('$store.expandedRouteId', value => open = (value === route.id))">
-                                <div v-show="expandedRouteId === route.id" class="p-3 border-t border-gray-200 bg-white">
-                                    <button @click="drawRoute(route)" class="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition mb-3 flex items-center justify-center space-x-2">
-                                        <i class="fa-solid fa-eye"></i><span>Ver ruta completa</span>
-                                    </button>
-                                    <h4 class="font-bold mb-2 mt-4">Paradas:</h4>
-                                    <ul class="space-y-1 max-h-48 overflow-y-auto text-sm">
-                                        <li v-for="(stop, index) in route.stops" :key="index" @click="drawRoute(route, stop)" class="p-2 rounded-md cursor-pointer hover:bg-gray-100 flex items-center">
-                                            <i class="fa-solid fa-map-pin mr-2 text-gray-400"></i><span>{{ stop.name }}</span>
-                                        </li>
-                                    </ul>
-                                </div>
+                            <div v-show="expandedRouteId === route.id" class="p-3 border-t border-gray-200 bg-white">
+                                <button @click="drawRoute(route)" class="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition mb-3 flex items-center justify-center space-x-2">
+                                    <i class="fa-solid fa-eye"></i><span>Ver ruta completa</span>
+                                </button>
+                                <h4 class="font-bold mb-2 mt-4">Paradas:</h4>
+                                <ul class="space-y-1 max-h-48 overflow-y-auto text-sm">
+                                    <li v-for="(stop, index) in route.stops" :key="index" @click="drawRoute(route, stop)" class="p-2 rounded-md cursor-pointer hover:bg-gray-100 flex items-center">
+                                        <i class="fa-solid fa-map-pin mr-2 text-gray-400"></i><span>{{ stop.name }}</span>
+                                    </li>
+                                </ul>
                             </div>
                         </div>
                     </div>
-                    <p v-else class="text-gray-500 italic text-sm">No se encontraron rutas.</p>
                 </div>
             </div>
 
-            <!-- Map Area -->
             <div class="lg:col-span-2 rounded-2xl shadow-lg overflow-hidden">
                 <div id="map" class="w-full h-[85vh]"></div>
             </div>
@@ -123,25 +94,15 @@
     createApp({
         data() {
             return {
-                map: null,
-                isLoading: true,
-                userLocation: null,
-                userAddress: 'No disponible',
-                userMarker: null, 
-                routeLayer: null, 
-                recommendationLayer: null,
-                allRoutes: [],
-                allStops: [],
-                stopQuery: '',
-                expandedRouteId: null,
+                map: null, isLoading: true, userLocation: null, userAddress: 'No disponible',
+                userMarker: null, routeLayer: null, recommendationLayer: null,
+                allRoutes: [], allStops: [], stopQuery: '', expandedRouteId: null,
             }
         },
         computed: {
             filteredStops() {
                 if (!this.stopQuery) return [];
-                return this.allStops.filter(stop => 
-                    stop.name.toLowerCase().includes(this.stopQuery.toLowerCase())
-                );
+                return this.allStops.filter(stop => stop.name.toLowerCase().includes(this.stopQuery.toLowerCase()));
             }
         },
         mounted() {
@@ -151,9 +112,7 @@
         methods: {
             initMap() {
                 this.map = L.map('map', { zoomControl: false }).setView([19.8151, -97.3594], 13);
-                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                }).addTo(this.map);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(this.map);
                 L.control.zoom({ position: 'bottomright' }).addTo(this.map);
             },
             async fetchAllRoutesAndStops() {
@@ -167,23 +126,15 @@
                         this.allRoutes.forEach(route => {
                             route.stops.forEach(stop => {
                                 const key = stop.name.toLowerCase();
-                                if (stops.has(key)) {
-                                    stops.get(key).routeIds.push(route.id);
-                                } else {
-                                    stops.set(key, { name: stop.name, lat: stop.lat, lon: stop.lon, routeIds: [route.id] });
-                                }
+                                if (stops.has(key)) { stops.get(key).routeIds.push(route.id); }
+                                else { stops.set(key, { name: stop.name, lat: stop.lat, lon: stop.lon, routeIds: [route.id] }); }
                             });
                         });
                         this.allStops = Array.from(stops.values());
                         this.getCurrentLocation();
-                    } else {
-                        console.error("Error fetching routes:", data.error);
-                    }
-                } catch (error) {
-                    console.error("Error fetching routes:", error);
-                } finally {
-                    this.isLoading = false;
-                }
+                    } else { console.error("Error fetching routes:", data.error); }
+                } catch (error) { console.error("Error fetching routes:", error); }
+                finally { this.isLoading = false; }
             },
             clearLayers() {
                 if (this.routeLayer) this.map.removeLayer(this.routeLayer);
@@ -191,9 +142,7 @@
                 this.routeLayer = null;
                 this.recommendationLayer = null;
             },
-            toggleRoute(routeId) {
-                this.expandedRouteId = this.expandedRouteId === routeId ? null : routeId;
-            },
+            toggleRoute(routeId) { this.expandedRouteId = this.expandedRouteId === routeId ? null : routeId; },
             drawRoute(route, highlightedStop = null) {
                 this.clearLayers();
                 const layers = [];
@@ -206,6 +155,10 @@
                         if (highlightedStop && stop.name === highlightedStop.name) {
                             icon = L.divIcon({ html: '<i class="fa-solid fa-location-dot fa-3x text-red-600"></i>', className: '', iconSize: [36, 36] });
                             zIndexOffset = 1000;
+                        } else if (index === 0) {
+                            icon = L.divIcon({ html: `<i class="fa-solid fa-bus fa-2x" style="color: ${route.color || '#FF0A0A'}"></i>`, className: '', iconSize: [24, 24] });
+                        } else if (index === route.stops.length - 1) {
+                            icon = L.divIcon({ html: '<i class="fa-solid fa-flag-checkered fa-2x"></i>', className: '', iconSize: [24, 24] });
                         } else {
                             icon = L.divIcon({ html: `<div class="w-3 h-3 bg-white rounded-full ring-2" style="ring-color: ${route.color}"></div>`, className: '' });
                         }
@@ -221,7 +174,7 @@
                 navigator.geolocation.getCurrentPosition(pos => {
                     this.userLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude };
                     if (this.userMarker) this.map.removeLayer(this.userMarker);
-                    const userIcon = L.divIcon({ html: '<i class="fa-solid fa-street-view fa-2x text-green-600 animate-pulse"></i>', className: '', iconSize: [24, 24] });
+                    const userIcon = L.divIcon({ html: '<i class="fa-solid fa-street-view fa-2x text-green-600"></i>', className: '', iconSize: [24, 24] });
                     this.userMarker = L.marker([this.userLocation.lat, this.userLocation.lon], { icon: userIcon }).addTo(this.map).bindPopup('<b>Tu ubicación</b>');
                     this.map.setView([this.userLocation.lat, this.userLocation.lon], 15);
                     fetch(`/api/reverse-geocode?lat=${this.userLocation.lat}&lon=${this.userLocation.lon}`)

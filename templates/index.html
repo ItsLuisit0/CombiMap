@@ -1,5 +1,5 @@
-{% set transparent_header = true %}
 {% extends 'base.html' %}
+{% set transparent_header = true %}
 
 {% block title %}Inicio{% endblock %}
 
@@ -87,13 +87,20 @@
     </section>
 
     <!-- CTA Section -->
-    <section class="py-20 bg-blue-600 text-white">
-        <div class="container mx-auto px-6 text-center">
-            <h2 class="text-3xl font-bold mb-4">¿Listo para tu próximo viaje?</h2>
-            <p class="text-blue-200 mb-8 max-w-2xl mx-auto">Abre el mapa interactivo y descubre lo fácil que es moverte por la ciudad con CombiMap.</p>
-            <a href="/map" class="bg-white text-blue-600 font-bold py-4 px-8 rounded-full text-lg hover:bg-gray-100 transition duration-300 ease-in-out transform hover:scale-105">
-                Explorar el Mapa
-            </a>
+    <section class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
+        <div class="container mx-auto px-6 py-20 grid md:grid-cols-2 gap-12 items-center">
+            <div class="text-center md:text-left">
+                <h2 class="text-3xl md:text-4xl font-bold mb-4">Comienza a explorar Teziutlán sin límites.</h2>
+                <p class="text-blue-200 mb-8 max-w-lg">
+                    Accede al mapa interactivo y descubre una nueva forma de moverte por la ciudad. Tu viaje, a un solo clic de distancia.
+                </p>
+                <a href="/map" class="bg-white text-blue-600 font-bold py-3 px-8 rounded-full text-lg hover:bg-gray-100 transition duration-300 ease-in-out transform hover:scale-105 shadow-lg inline-block">
+                    Abrir Mapa
+                </a>
+            </div>
+            <div class="hidden md:flex justify-center items-center">
+                <i class="fa-solid fa-map-location-dot text-9xl text-white/20 transform rotate-12"></i>
+            </div>
         </div>
     </section>
 {% endblock %}

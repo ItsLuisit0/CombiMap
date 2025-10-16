@@ -1,15 +1,20 @@
-'''
-Main Flask application file for CombiMap.
-This version reads route data directly from KML files.
-'''
+# -*- coding: utf-8 -*-
 from flask import Flask, render_template, jsonify, request
 import urllib.request
 import json
 import os
 import xml.etree.ElementTree as ET
-import re
+import math
 
 app = Flask(__name__)
+
+def haversine_distance(lat1, lon1, lat2, lon2):
+    R = 6371 # Earth radius in kilometers
+    dLat = math.radians(lat2 - lat1)
+    dLon = math.radians(lon2 - lon1)
+    a = math.sin(dLat / 2) * math.sin(dLat / 2) + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dLon / 2) * math.sin(dLon / 2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
 
 def parse_kml(file_path):
     """Parses a KML file to extract route name, coordinates, and stops."""
@@ -27,9 +32,9 @@ def parse_kml(file_path):
         
         route_coordinates = []
         track_coords_elements = root.findall('.//gx:Track/gx:coord', ns)
-        if not track_coords_elements: # Fallback for coordinates in Placemark
+        if not track_coords_elements:
             track_coords_elements = root.findall('.//kml:Placemark[.//kml:LineString]/kml:LineString/kml:coordinates', ns)
-            if track_coords_elements: # This is a single element with space-separated coords
+            if track_coords_elements:
                 coords_text = track_coords_elements[0].text.strip()
                 for coord_pair in coords_text.split():
                     parts = coord_pair.split(',')
@@ -57,6 +62,23 @@ def parse_kml(file_path):
                             'lat': float(coords[1]),
                             'lon': float(coords[0])
                         })
+        
+        # Sort stops based on their proximity to the route coordinates
+        if stops and route_coordinates:
+            sorted_stops_with_order = []
+            for stop in stops:
+                min_dist = float('inf')
+                closest_coord_index = -1
+                for i, coord in enumerate(route_coordinates):
+                    dist = haversine_distance(stop['lat'], stop['lon'], coord[0], coord[1])
+                    if dist < min_dist:
+                        min_dist = dist
+                        closest_coord_index = i
+                if closest_coord_index != -1:
+                    sorted_stops_with_order.append({'stop': stop, 'order': closest_coord_index})
+            
+            sorted_stops_with_order.sort(key=lambda x: x['order'])
+            stops = [item['stop'] for item in sorted_stops_with_order]
 
         return {
             'name': route_name,
