@@ -1,97 +1,109 @@
+'''
+Main Flask application file for CombiMap.
+This version reads route data directly from KML files.
+'''
 from flask import Flask, render_template, jsonify, request
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import and_
-import re
-import math
-import json
 import urllib.request
+import json
+import os
+import xml.etree.ElementTree as ET
+import re
 
-# --- Configuración de la Aplicación ---
 app = Flask(__name__)
 
-# Configuración de la base de datos
-DB_USER = 'root'
-DB_PASS = 'root'
-DB_HOST = 'localhost'
-DB_PORT = '3306'
-DB_NAME = 'MiCombiBackend'
+def parse_kml(file_path):
+    """Parses a KML file to extract route name, coordinates, and stops."""
+    ns = {
+        'kml': 'http://www.opengis.net/kml/2.2',
+        'gx': 'http://www.google.com/kml/ext/2.2'
+    }
+    
+    try:
+        parser = ET.XMLParser(encoding='utf-8')
+        tree = ET.parse(file_path, parser)
+        root = tree.getroot()
+        
+        route_name = os.path.splitext(os.path.basename(file_path))[0].replace('_', ' ').replace('-', ' ').title()
+        
+        route_coordinates = []
+        track_coords_elements = root.findall('.//gx:Track/gx:coord', ns)
+        if not track_coords_elements: # Fallback for coordinates in Placemark
+            track_coords_elements = root.findall('.//kml:Placemark[.//kml:LineString]/kml:LineString/kml:coordinates', ns)
+            if track_coords_elements: # This is a single element with space-separated coords
+                coords_text = track_coords_elements[0].text.strip()
+                for coord_pair in coords_text.split():
+                    parts = coord_pair.split(',')
+                    if len(parts) >= 2:
+                        lon, lat = map(float, parts[:2])
+                        route_coordinates.append([lat, lon])
+        else:
+            for coord in track_coords_elements:
+                parts = coord.text.split()
+                if len(parts) >= 2:
+                    lon, lat = map(float, parts[:2])
+                    route_coordinates.append([lat, lon])
 
-app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+mysqlconnector://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        stops = []
+        for placemark in root.findall('.//kml:Placemark', ns):
+            name_elem = placemark.find('kml:name', ns)
+            point_elem = placemark.find('.//kml:Point/kml:coordinates', ns)
+            
+            if name_elem is not None and name_elem.text and point_elem is not None:
+                if 'ida' not in name_elem.text.lower() and 'regreso' not in name_elem.text.lower():
+                    coords = point_elem.text.strip().split(',')
+                    if len(coords) >= 2:
+                        stops.append({
+                            'name': name_elem.text.strip(),
+                            'lat': float(coords[1]),
+                            'lon': float(coords[0])
+                        })
 
-db = SQLAlchemy(app)
+        return {
+            'name': route_name,
+            'coordinates': route_coordinates,
+            'stops': stops
+        }
 
-# --- Modelos de la Base de Datos (SQLAlchemy) ---
-
-ruta_paradas_association = db.Table('ruta_paradas',
-    db.Model.metadata,
-    db.Column('ruta_id', db.Integer, db.ForeignKey('rutas.id')), 
-    db.Column('parada_id', db.Integer, db.ForeignKey('paradas.id'))
-)
-
-class Base(db.Model):
-    __tablename__ = 'bases'
-    id = db.Column(db.Integer, primary_key=True)
-    nombre = db.Column(db.String(100), nullable=False)
-    latitud = db.Column(db.Numeric(10, 8), nullable=False)
-    longitud = db.Column(db.Numeric(11, 8), nullable=False)
-    descripcion = db.Column(db.Text)
-    imagenes = db.Column(db.JSON)
-    color = db.Column(db.String(7))
-    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
-
-class RutaCoordenadas(db.Model):
-    __tablename__ = 'ruta_coordenadas'
-    id = db.Column(db.Integer, primary_key=True)
-    ruta_id = db.Column(db.Integer, db.ForeignKey('rutas.id'), nullable=False)
-    latitud = db.Column(db.Numeric(10, 8), nullable=False)
-    longitud = db.Column(db.Numeric(11, 8), nullable=False)
-    orden = db.Column(db.Integer, nullable=False)
-
-class Parada(db.Model):
-    __tablename__ = 'paradas'
-    id = db.Column(db.Integer, primary_key=True)
-    nombre = db.Column(db.String(100), nullable=False)
-    latitud = db.Column(db.Numeric(10, 8), nullable=False)
-    longitud = db.Column(db.Numeric(11, 8), nullable=False)
-    descripcion = db.Column(db.Text)
-    tipo = db.Column(db.Enum('principal', 'secundaria'), default='secundaria')
-    imagenes = db.Column(db.JSON)
-    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
-
-class Ruta(db.Model):
-    __tablename__ = 'rutas'
-    id = db.Column(db.Integer, primary_key=True)
-    nombre = db.Column(db.String(100), nullable=False)
-    color = db.Column(db.String(7), nullable=False)
-    base_inicio_id = db.Column(db.Integer, db.ForeignKey('bases.id'))
-    base_fin_id = db.Column(db.Integer, db.ForeignKey('bases.id'))
-    horario_inicio = db.Column(db.Time, nullable=True)
-    horario_fin = db.Column(db.Time, nullable=True)
-    costo = db.Column(db.Numeric(6, 2), nullable=True)
-    descripcion = db.Column(db.Text)
-    activa = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
-    coordenadas = db.relationship('RutaCoordenadas', backref='ruta', lazy=True, order_by='RutaCoordenadas.orden')
-    paradas = db.relationship('Parada', secondary=ruta_paradas_association, lazy='subquery', backref=db.backref('rutas', lazy=True))
-
-# --- Lógica de Búsqueda y Helpers ---
-
-def haversine_distance(lat1, lon1, lat2, lon2):
-    R = 6371
-    dLat = math.radians(lat2 - lat1)
-    dLon = math.radians(lon2 - lon1)
-    a = math.sin(dLat / 2) * math.sin(dLat / 2) + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dLon / 2) * math.sin(dLon / 2)
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return R * c
-
-def find_nearest_stop(lat, lon):
-    all_stops = Parada.query.all()
-    if not all_stops:
+    except Exception as e:
+        print(f"  -> ERROR: Ocurrió un error al procesar {os.path.basename(file_path)}: {e}")
         return None
-    return min(all_stops, key=lambda stop: haversine_distance(lat, lon, float(stop.latitud), float(stop.longitud)))
 
-# --- Rutas de la API y la Aplicación ---
+def load_kml_data():
+    """Loads all KML files from the assets directory and assigns properties."""
+    print("--- Iniciando la carga de datos KML ---")
+    kml_dir = os.path.join('assets', 'kml')
+    all_routes = []
+    route_id_counter = 1
+    
+    colors = ['#FF0A0A', '#0A0AFF', '#0AFFA0', '#FFA00A', '#A00AFFA', '#FF00FF']
+
+    if not os.path.exists(kml_dir):
+        print(f"ADVERTENCIA: El directorio KML no existe en: {kml_dir}")
+        return []
+
+    for root_dir, _, files in os.walk(kml_dir):
+        print(f"Escaneando directorio: {root_dir}")
+        for file in sorted(files):
+            if file.endswith('.kml'):
+                file_path = os.path.join(root_dir, file)
+                print(f"Procesando archivo KML: {file_path}")
+                route_data = parse_kml(file_path)
+                if route_data and route_data['coordinates']:
+                    print(f"  -> Éxito: Ruta '{route_data['name']}' cargada con {len(route_data['coordinates'])} coordenadas y {len(route_data['stops'])} paradas.")
+                    route_data['id'] = route_id_counter
+                    route_data['color'] = colors[(route_id_counter - 1) % len(colors)]
+                    route_data['cost'] = 8.00
+                    route_data['schedule'] = "06:00 - 22:00"
+                    route_data['description'] = f"Ruta {route_data['name']}"
+                    all_routes.append(route_data)
+                    route_id_counter += 1
+                else:
+                    print(f"  -> ADVERTENCIA: No se pudieron extraer datos o coordenadas de la ruta para el archivo: {file}")
+    
+    print(f"--- Carga KML finalizada. {len(all_routes)} rutas cargadas. ---")
+    return all_routes
+
+KML_ROUTES = load_kml_data()
 
 @app.route('/')
 def index():
@@ -105,21 +117,30 @@ def map_app():
 def about():
     return render_template('about.html')
 
+@app.route('/api/routes')
+def get_kml_routes():
+    if not KML_ROUTES:
+        return jsonify({"error": "No KML routes loaded."}), 404
+    return jsonify(KML_ROUTES)
 
 @app.route('/api/stops')
-def get_all_stops():
-    try:
-        stops = Parada.query.order_by(Parada.nombre).all()
-        stops_data = [{
-            'id': stop.id,
-            'name': stop.nombre,
-            'lat': float(stop.latitud),
-            'lon': float(stop.longitud)
-        } for stop in stops]
-        return jsonify(stops_data)
-    except Exception as e:
-        print(f"ERROR en /api/stops: {e}")
-        return jsonify({"error": str(e)}), 500
+def get_all_stops_from_kml():
+    all_stops = []
+    seen_stops = set()
+    stop_id_counter = 1
+    for route in KML_ROUTES:
+        for stop in route.get('stops', []):
+            stop_identifier = (stop['name'], stop['lat'], stop['lon'])
+            if stop_identifier not in seen_stops:
+                all_stops.append({
+                    'id': stop_id_counter,
+                    'name': stop['name'],
+                    'lat': stop['lat'],
+                    'lon': stop['lon']
+                })
+                seen_stops.add(stop_identifier)
+                stop_id_counter += 1
+    return jsonify(all_stops)
 
 @app.route('/api/reverse-geocode')
 def reverse_geocode_api():
@@ -139,105 +160,5 @@ def reverse_geocode_api():
         print(f"Error con la API de Nominatim: {e}")
         return jsonify({"error": "No se pudo obtener la dirección"}), 500
 
-@app.route('/api/route/<int:route_id>/nearest-stop')
-def find_nearest_stop_for_route(route_id):
-    lat_str = request.args.get('lat')
-    lon_str = request.args.get('lon')
-    if not lat_str or not lon_str:
-        return jsonify({"error": "Latitud y longitud son requeridas"}), 400
-
-    try:
-        user_lat, user_lon = float(lat_str), float(lon_str)
-        ruta = Ruta.query.get_or_404(route_id)
-        
-        if not ruta.paradas:
-            return jsonify({"error": "La ruta no tiene paradas registradas"}), 404
-
-        nearest_parada = min(ruta.paradas, key=lambda parada: haversine_distance(user_lat, user_lon, float(parada.latitud), float(parada.longitud)))
-        
-        return jsonify({
-            'id': nearest_parada.id,
-            'name': nearest_parada.nombre,
-            'lat': float(nearest_parada.latitud),
-            'lon': float(nearest_parada.longitud)
-        })
-
-    except Exception as e:
-        print(f"Error en nearest-stop: {e}")
-        return jsonify({"error": "Error interno al procesar la solicitud"}), 500
-
-@app.route('/api/routes')
-def get_db_routes():
-    try:
-        rutas_from_db = Ruta.query.order_by(Ruta.id).all()
-        routes_data = []
-        for ruta in rutas_from_db:
-            coords_list = [[float(c.latitud), float(c.longitud)] for c in ruta.coordenadas]
-            stops_list = [{'name': p.nombre, 'lat': float(p.latitud), 'lon': float(p.longitud)} for p in ruta.paradas]
-            costo_val = float(ruta.costo) if ruta.costo is not None else None
-            schedule_val = 'No disponible'
-            if ruta.horario_inicio and ruta.horario_fin:
-                schedule_val = f'{ruta.horario_inicio.strftime("%H:%M")} - {ruta.horario_fin.strftime("%H:%M")}'
-
-            routes_data.append({
-                'id': ruta.id, 'name': ruta.nombre, 'color': ruta.color, 'cost': costo_val,
-                'schedule': schedule_val, 'description': ruta.descripcion,
-                'coordinates': coords_list, 'stops': stops_list
-            })
-        return jsonify(routes_data)
-    except Exception as e:
-        print(f"ERROR en /api/routes: {e}")
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/search')
-def search_routes_api():
-    origin_query = request.args.get('origin', '').strip()
-    dest_query = request.args.get('destination', '').strip()
-
-    if not origin_query or not dest_query:
-        return jsonify({"error": "Origen y destino son requeridos"}), 400
-
-    origin_stops = []
-    geo_match = re.match(r"Mi ubicación \((.+), (.+)\)", origin_query)
-    if geo_match:
-        lat, lon = float(geo_match.group(1)), float(geo_match.group(2))
-        nearest_stop = find_nearest_stop(lat, lon)
-        if nearest_stop:
-            origin_stops.append(nearest_stop)
-    else:
-        origin_stops = Parada.query.filter(Parada.nombre.like(f"%{origin_query}%")).all()
-
-    dest_stops = Parada.query.filter(Parada.nombre.like(f"%{dest_query}%")).all()
-
-    if not origin_stops or not dest_stops:
-        return jsonify([])
-
-    origin_stop_ids = [p.id for p in origin_stops]
-    dest_stop_ids = [p.id for p in dest_stops]
-
-    matching_routes = Ruta.query.filter(
-        Ruta.paradas.any(Parada.id.in_(origin_stop_ids))
-    ).filter(
-        Ruta.paradas.any(Parada.id.in_(dest_stop_ids))
-    ).all()
-
-    routes_data = []
-    for ruta in matching_routes:
-        coords_list = [[float(c.latitud), float(c.longitud)] for c in ruta.coordenadas]
-        stops_list = [{'name': p.nombre, 'lat': float(p.latitud), 'lon': float(p.longitud)} for p in ruta.paradas]
-        costo_val = float(ruta.costo) if ruta.costo is not None else None
-        schedule_val = 'No disponible'
-        if ruta.horario_inicio and ruta.horario_fin:
-            schedule_val = f'{ruta.horario_inicio.strftime("%H:%M")} - {ruta.horario_fin.strftime("%H:%M")}'
-
-        routes_data.append({
-            'id': ruta.id, 'name': ruta.nombre, 'color': ruta.color, 'cost': costo_val,
-            'schedule': schedule_val, 'description': ruta.descripcion,
-            'coordinates': coords_list, 'stops': stops_list
-        })
-
-    return jsonify(routes_data)
-
-# --- Punto de Entrada de la Aplicación ---
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

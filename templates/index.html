@@ -1,46 +1,99 @@
+{% set transparent_header = true %}
 {% extends 'base.html' %}
 
 {% block title %}Inicio{% endblock %}
 
 {% block content %}
     <!-- Hero Section -->
-    <main class="pt-32 pb-20 hero-bg">
-        <div class="container mx-auto px-6 text-center">
-            <h1 class="text-5xl font-extrabold text-white mb-4">La forma más fácil de moverte por Teziutlán.</h1>
-            <p class="text-xl text-gray-200 mb-8 max-w-3xl mx-auto">No más dudas. Encuentra tu ruta, consulta paradas y planifica tu viaje en combi de manera rápida y sencilla.</p>
-            <a href="/map" class="bg-blue-600 text-white font-bold py-4 px-8 rounded-full text-lg hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105">
+    <section class="h-screen min-h-[600px] flex items-center justify-center text-center hero-bg text-white px-4">
+        <div class="fade-in-up">
+            <h1 class="text-4xl md:text-6xl font-extrabold mb-4 leading-tight">La forma más fácil de moverte por Teziutlán.</h1>
+            <p class="text-lg md:text-xl text-gray-200 mb-8 max-w-3xl mx-auto">No más dudas. Encuentra tu ruta, consulta paradas y planifica tu viaje en combi de manera rápida y sencilla.</p>
+            <a href="/map" class="bg-blue-600 text-white font-bold py-4 px-8 rounded-full text-lg hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105 shadow-lg">
                 Ir al Mapa Interactivo
             </a>
         </div>
-    </main>
+    </section>
 
     <!-- Features Section -->
     <section class="py-20 bg-white">
         <div class="container mx-auto px-6">
-            <h2 class="text-3xl font-bold text-center mb-12">¿Qué puedes hacer?</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-12 text-center">
-                <div class="feature bg-gray-50 p-8 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
-                    <div class="text-blue-600 mb-4">
-                        <i class="fa-solid fa-map-location-dot fa-3x"></i>
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-bold">¿Qué puedes hacer con CombiMap?</h2>
+                <p class="text-gray-600 mt-2">Todo lo que necesitas para viajar sin complicaciones.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+                <!-- Feature 1 -->
+                <div class="text-center p-8 bg-gray-50 rounded-2xl shadow-lg hover:shadow-blue-100 transition-shadow duration-300 transform hover:-translate-y-2">
+                    <div class="text-blue-600 mb-4 inline-block p-4 bg-blue-100 rounded-full">
+                        <i class="fa-solid fa-route fa-2x"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-2">Visualiza las Rutas</h3>
-                    <p class="text-gray-600">Explora el trazado completo de todas las rutas de combi sobre un mapa interactivo.</p>
+                    <h3 class="text-xl font-bold mb-2">Visualiza Rutas Completas</h3>
+                    <p class="text-gray-600">Explora el trazado de todas las rutas de combi sobre el mapa. Identifica fácilmente las rutas por sus colores únicos.</p>
                 </div>
-                <div class="feature bg-gray-50 p-8 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
-                    <div class="text-blue-600 mb-4">
-                        <i class="fa-solid fa-magnifying-glass-location fa-3x"></i>
+                <!-- Feature 2 -->
+                <div class="text-center p-8 bg-gray-50 rounded-2xl shadow-lg hover:shadow-green-100 transition-shadow duration-300 transform hover:-translate-y-2">
+                    <div class="text-green-600 mb-4 inline-block p-4 bg-green-100 rounded-full">
+                        <i class="fa-solid fa-magnifying-glass-location fa-2x"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-2">Busca tu Trayecto</h3>
-                    <p class="text-gray-600">Introduce tu origen y destino y deja que te sugiramos la mejor ruta para llegar.</p>
+                    <h3 class="text-xl font-bold mb-2">Encuentra Paradas</h3>
+                    <p class="text-gray-600">Usa el buscador para localizar cualquier parada y ver al instante qué rutas pasan por ahí y su trazado completo.</p>
                 </div>
-                <div class="feature bg-gray-50 p-8 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
-                    <div class="text-blue-600 mb-4">
-                        <i class="fa-solid fa-circle-info fa-3x"></i>
+                <!-- Feature 3 -->
+                <div class="text-center p-8 bg-gray-50 rounded-2xl shadow-lg hover:shadow-cyan-100 transition-shadow duration-300 transform hover:-translate-y-2">
+                    <div class="text-cyan-600 mb-4 inline-block p-4 bg-cyan-100 rounded-full">
+                        <i class="fa-solid fa-person-walking-arrow-right fa-2x"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-2">Consulta Información</h3>
-                    <p class="text-gray-600">Obtén detalles de cada ruta, como sus paradas clave, horarios y costos aproximados.</p>
+                    <h3 class="text-xl font-bold mb-2">Ubica tu Parada Cercana</h3>
+                    <p class="text-gray-600">Con tu ubicación, te mostramos automáticamente cuál es la parada más cercana a ti para que sepas a dónde dirigirte.</p>
                 </div>
             </div>
+        </div>
+    </section>
+
+    <!-- Infinite Slider Section -->
+    <section class="py-12 bg-gray-100 overflow-hidden">
+        <h3 class="text-center text-lg font-semibold text-gray-600 mb-8">Algunas de nuestras rutas</h3>
+        <div class="relative">
+            <div class="flex animate-infinite-scroll">
+                <div class="flex items-center space-x-8 mx-4">
+                    <span class="text-gray-500 font-bold"><i class="fa-solid fa-bus text-red-500"></i> Ruta Centro - Amila</span>
+                    <span class="text-gray-500 font-bold"><i class="fa-solid fa-bus text-blue-500"></i> Ruta Centro - San Pedro</span>
+                    <span class="text-gray-500 font-bold"><i class="fa-solid fa-bus text-green-500"></i> Ruta Tepetitan - Centro</span>
+                    <span class="text-gray-500 font-bold"><i class="fa-solid fa-bus text-yellow-500"></i> Ruta Xoloco - Centro</span>
+                    <span class="text-gray-500 font-bold"><i class="fa-solid fa-bus text-purple-500"></i> Ruta Lomas - Centro</span>
+                    <span class="text-gray-500 font-bold"><i class="fa-solid fa-bus text-pink-500"></i> Ruta San Diego - Centro</span>
+                </div>
+                <div class="flex items-center space-x-8 mx-4" aria-hidden="true">
+                    <span class="text-gray-500 font-bold"><i class="fa-solid fa-bus text-red-500"></i> Ruta Centro - Amila</span>
+                    <span class="text-gray-500 font-bold"><i class="fa-solid fa-bus text-blue-500"></i> Ruta Centro - San Pedro</span>
+                    <span class="text-gray-500 font-bold"><i class="fa-solid fa-bus text-green-500"></i> Ruta Tepetitan - Centro</span>
+                    <span class="text-gray-500 font-bold"><i class="fa-solid fa-bus text-yellow-500"></i> Ruta Xoloco - Centro</span>
+                    <span class="text-gray-500 font-bold"><i class="fa-solid fa-bus text-purple-500"></i> Ruta Lomas - Centro</span>
+                    <span class="text-gray-500 font-bold"><i class="fa-solid fa-bus text-pink-500"></i> Ruta San Diego - Centro</span>
+                </div>
+            </div>
+        </div>
+        <style>
+            @keyframes infinite-scroll {
+                from { transform: translateX(0); }
+                to { transform: translateX(-100%); }
+            }
+            .animate-infinite-scroll {
+                animation: infinite-scroll 40s linear infinite;
+                width: 200%; /* Twice the container width */
+            }
+        </style>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-20 bg-blue-600 text-white">
+        <div class="container mx-auto px-6 text-center">
+            <h2 class="text-3xl font-bold mb-4">¿Listo para tu próximo viaje?</h2>
+            <p class="text-blue-200 mb-8 max-w-2xl mx-auto">Abre el mapa interactivo y descubre lo fácil que es moverte por la ciudad con CombiMap.</p>
+            <a href="/map" class="bg-white text-blue-600 font-bold py-4 px-8 rounded-full text-lg hover:bg-gray-100 transition duration-300 ease-in-out transform hover:scale-105">
+                Explorar el Mapa
+            </a>
         </div>
     </section>
 {% endblock %}
