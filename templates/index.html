@@ -3,49 +3,98 @@
 
 {% block title %}Inicio{% endblock %}
 
+{% block head %}
+    {{ super() }}
+    <style>
+        .hero-bg {
+            background-image: url("{{ url_for('static', filename='img/ZocaloTeziutlan.jpg') }}");
+            background-size: cover;
+            background-position: center;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .fade-in-up {
+            animation: fadeInUp 1s ease-out forwards;
+        }
+
+        @keyframes count-up {
+            from {
+                --num: 0;
+            }
+        }
+        .counter {
+            counter-reset: num var(--num);
+            animation: count-up 2s ease-out forwards;
+            animation-delay: var(--delay, 0s);
+        }
+        .counter::after {
+            content: counter(num);
+        }
+
+        @keyframes infinite-scroll {
+            from { transform: translateX(0); }
+            to { transform: translateX(-100%); }
+        }
+        .animate-infinite-scroll {
+            animation: infinite-scroll 40s linear infinite;
+            width: 200%; /* Twice the container width */
+        }
+    </style>
+{% endblock %}
+
 {% block content %}
-    <!-- Hero Section -->
-    <section class="h-screen min-h-[600px] flex items-center justify-center text-center hero-bg text-white px-4">
-        <div class="fade-in-up">
-            <h1 class="text-4xl md:text-6xl font-extrabold mb-4 leading-tight">La forma más fácil de moverte por Teziutlán.</h1>
-            <p class="text-lg md:text-xl text-gray-200 mb-8 max-w-3xl mx-auto">No más dudas. Encuentra tu ruta, consulta paradas y planifica tu viaje en combi de manera rápida y sencilla.</p>
-            <a href="/map" class="bg-blue-600 text-white font-bold py-4 px-8 rounded-full text-lg hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105 shadow-lg">
-                Ir al Mapa Interactivo
+    <!-- Hero Section with Image -->
+    <section class="relative h-screen min-h-[700px] flex items-center justify-center text-center text-white px-4 overflow-hidden hero-bg">
+        <div class="absolute top-0 left-0 w-full h-full bg-black opacity-50 z-10"></div>
+        <div class="relative z-20 fade-in-up">
+            <h1 class="text-5xl md:text-7xl font-extrabold mb-4 leading-tight tracking-tight">CombiMap Teziutlán</h1>
+            <p class="text-xl md:text-2xl text-gray-200 mb-10 max-w-3xl mx-auto">Tu guía definitiva para moverte en combi por la ciudad. Simple, rápido y siempre a la mano.</p>
+            <a href="/map" class="bg-blue-600 text-white font-bold py-4 px-10 rounded-full text-xl hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105 shadow-lg">
+                <i class="fa-solid fa-map-location-dot mr-2"></i>Ver Mapa Interactivo
             </a>
         </div>
     </section>
 
     <!-- Features Section -->
-    <section class="py-20 bg-white">
+    <section class="py-24 bg-white">
         <div class="container mx-auto px-6">
             <div class="text-center mb-16">
-                <h2 class="text-3xl md:text-4xl font-bold">¿Qué puedes hacer con CombiMap?</h2>
-                <p class="text-gray-600 mt-2">Todo lo que necesitas para viajar sin complicaciones.</p>
+                <h2 class="text-4xl md:text-5xl font-bold text-gray-800">Todo lo que necesitas para tu viaje</h2>
+                <p class="text-gray-600 mt-4 text-lg">CombiMap te lo pone fácil.</p>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
                 <!-- Feature 1 -->
-                <div class="text-center p-8 bg-gray-50 rounded-2xl shadow-lg hover:shadow-blue-100 transition-shadow duration-300 transform hover:-translate-y-2">
-                    <div class="text-blue-600 mb-4 inline-block p-4 bg-blue-100 rounded-full">
-                        <i class="fa-solid fa-route fa-2x"></i>
+                <div class="text-center p-8 bg-gray-50 rounded-2xl shadow-lg hover:shadow-blue-200 transition-shadow duration-300 transform hover:-translate-y-2">
+                    <div class="text-blue-600 mb-5 inline-block p-5 bg-blue-100 rounded-full">
+                        <i class="fa-solid fa-route fa-3x"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-2">Visualiza Rutas Completas</h3>
-                    <p class="text-gray-600">Explora el trazado de todas las rutas de combi sobre el mapa. Identifica fácilmente las rutas por sus colores únicos.</p>
+                    <h3 class="text-2xl font-bold mb-3">Rutas Claras y Precisas</h3>
+                    <p class="text-gray-600">Visualiza el trazado completo de todas las rutas de combi. Cada una con un color distintivo para que las identifiques al instante.</p>
                 </div>
                 <!-- Feature 2 -->
-                <div class="text-center p-8 bg-gray-50 rounded-2xl shadow-lg hover:shadow-green-100 transition-shadow duration-300 transform hover:-translate-y-2">
-                    <div class="text-green-600 mb-4 inline-block p-4 bg-green-100 rounded-full">
-                        <i class="fa-solid fa-magnifying-glass-location fa-2x"></i>
+                <div class="text-center p-8 bg-gray-50 rounded-2xl shadow-lg hover:shadow-green-200 transition-shadow duration-300 transform hover:-translate-y-2">
+                    <div class="text-green-600 mb-5 inline-block p-5 bg-green-100 rounded-full">
+                        <i class="fa-solid fa-magnifying-glass-location fa-3x"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-2">Encuentra Paradas</h3>
-                    <p class="text-gray-600">Usa el buscador para localizar cualquier parada y ver al instante qué rutas pasan por ahí y su trazado completo.</p>
+                    <h3 class="text-2xl font-bold mb-3">Buscador Inteligente</h3>
+                    <p class="text-gray-600">Localiza cualquier parada por su nombre y descubre qué rutas pasan por ella, ayudándote a planificar tus trasbordos.</p>
                 </div>
                 <!-- Feature 3 -->
-                <div class="text-center p-8 bg-gray-50 rounded-2xl shadow-lg hover:shadow-cyan-100 transition-shadow duration-300 transform hover:-translate-y-2">
-                    <div class="text-cyan-600 mb-4 inline-block p-4 bg-cyan-100 rounded-full">
-                        <i class="fa-solid fa-person-walking-arrow-right fa-2x"></i>
+                <div class="text-center p-8 bg-gray-50 rounded-2xl shadow-lg hover:shadow-cyan-200 transition-shadow duration-300 transform hover:-translate-y-2">
+                    <div class="text-cyan-600 mb-5 inline-block p-5 bg-cyan-100 rounded-full">
+                        <i class="fa-solid fa-location-crosshairs fa-3x"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-2">Ubica tu Parada Cercana</h3>
-                    <p class="text-gray-600">Con tu ubicación, te mostramos automáticamente cuál es la parada más cercana a ti para que sepas a dónde dirigirte.</p>
+                    <h3 class="text-2xl font-bold mb-3">Tu Parada Más Cercana</h3>
+                    <p class="text-gray-600">Activa tu ubicación y te mostraremos la parada más próxima a ti, junto con la distancia y la ruta para llegar a ella.</p>
                 </div>
             </div>
         </div>
@@ -74,33 +123,16 @@
                 </div>
             </div>
         </div>
-        <style>
-            @keyframes infinite-scroll {
-                from { transform: translateX(0); }
-                to { transform: translateX(-100%); }
-            }
-            .animate-infinite-scroll {
-                animation: infinite-scroll 40s linear infinite;
-                width: 200%; /* Twice the container width */
-            }
-        </style>
     </section>
 
     <!-- CTA Section -->
-    <section class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
-        <div class="container mx-auto px-6 py-20 grid md:grid-cols-2 gap-12 items-center">
-            <div class="text-center md:text-left">
-                <h2 class="text-3xl md:text-4xl font-bold mb-4">Comienza a explorar Teziutlán sin límites.</h2>
-                <p class="text-blue-200 mb-8 max-w-lg">
-                    Accede al mapa interactivo y descubre una nueva forma de moverte por la ciudad. Tu viaje, a un solo clic de distancia.
-                </p>
-                <a href="/map" class="bg-white text-blue-600 font-bold py-3 px-8 rounded-full text-lg hover:bg-gray-100 transition duration-300 ease-in-out transform hover:scale-105 shadow-lg inline-block">
-                    Abrir Mapa
-                </a>
-            </div>
-            <div class="hidden md:flex justify-center items-center">
-                <i class="fa-solid fa-map-location-dot text-9xl text-white/20 transform rotate-12"></i>
-            </div>
+    <section class="bg-white">
+        <div class="container mx-auto px-6 py-24 text-center">
+            <h2 class="text-4xl md:text-5xl font-bold text-gray-800 mb-6">¿Listo para tu próximo viaje?</h2>
+            <p class="text-gray-600 text-lg mb-10 max-w-2xl mx-auto">No esperes más. Accede al mapa interactivo y redescubre Teziutlán de la manera más inteligente.</p>
+            <a href="/map" class="bg-blue-600 text-white font-bold py-4 px-10 rounded-full text-xl hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105 shadow-lg">
+                <i class="fa-solid fa-rocket mr-2"></i>Empezar a Explorar
+            </a>
         </div>
     </section>
 {% endblock %}

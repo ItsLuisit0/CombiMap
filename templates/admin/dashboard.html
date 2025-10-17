@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block title %}Panel de Administración{% endblock %}
+
+{% block head %}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        .crosshair-cursor { cursor: crosshair; }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div id="app" class="pt-24">
+{% raw %}
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 rounded-2xl shadow-lg overflow-hidden">
+                <div id="map" class="w-full h-[85vh]"></div>
+            </div>
+            <div class="lg:col-span-1 bg-white rounded-2xl shadow-lg p-6 h-max space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xl font-bold">Panel de Administración</h2>
+                    <button @click="logout" class="text-sm font-medium text-red-600 hover:text-red-800">Cerrar Sesión</button>
+                </div>
+
+                <!-- Gestión de Rutas -->
+                <div>
+                    <h3 class="text-lg font-bold mb-2">Rutas</h3>
+                    <ul>
+                        <li v-for="route in routes" :key="route.id" class="flex items-center justify-between p-2 rounded-md hover:bg-gray-100">
+                            <span>{{ route.name }}</span>
+                            <div>
+                                <button @click="editRoute(route)" class="text-blue-600 hover:text-blue-800">Editar</button>
+                                <button @click="deleteRoute(route.id)" class="text-red-600 hover:text-red-800 ml-2">Eliminar</button>
+                            </div>
+                        </li>
+                    </ul>
+                    <button @click="enterDrawMode" class="mt-4 w-full bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600">Dibujar Nueva Ruta</button>
+                </div>
+
+                <!-- Gestión de Paradas -->
+                <div>
+                    <h3 class="text-lg font-bold mb-2">Paradas</h3>
+                    <ul>
+                        <li v-for="stop in stops" :key="stop.id" class="flex items-center justify-between p-2 rounded-md hover:bg-gray-100">
+                            <span>{{ stop.name }}</span>
+                            <div>
+                                <button @click="editStop(stop)" class="text-blue-600 hover:text-blue-800">Editar</button>
+                                <button @click="deleteStop(stop.id)" class="text-red-600 hover:text-red-800 ml-2">Eliminar</button>
+                            </div>
+                        </li>
+                    </ul>
+                    <button @click="enterPlaceStopMode" class="mt-4 w-full bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600">Colocar Nueva Parada en el Mapa</button>
+                    <button @click="showCreateStopModal = true" class="mt-2 w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600">Crear Parada Manualmente</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Crear Ruta -->
+    <div v-if="showCreateRouteModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
+        <div class="relative mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <h3 class="text-lg font-medium leading-6 text-gray-900">Crear Nueva Ruta</h3>
+            <form @submit.prevent="createRoute" class="mt-2 space-y-4">
+                <div>
+                    <label for="routeName" class="block text-sm font-medium text-gray-700">Nombre de la Ruta</label>
+                    <input v-model="newRoute.name" type="text" id="routeName" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div>
+                    <label for="routeColor" class="block text-sm font-medium text-gray-700">Color de la Ruta</label>
+                    <input v-model="newRoute.color" type="color" id="routeColor" required class="w-full h-10 px-1 py-1 mt-1 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div class="flex justify-end space-x-4">
+                    <button @click="showCreateRouteModal = false" type="button" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Crear</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Crear Parada -->
+    <div v-if="showCreateStopModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
+        <div class="relative mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <h3 class="text-lg font-medium leading-6 text-gray-900">Crear Nueva Parada</h3>
+            <form @submit.prevent="createStop" class="mt-2 space-y-4">
+                <div>
+                    <label for="stopName" class="block text-sm font-medium text-gray-700">Nombre de la Parada</label>
+                    <input v-model="newStop.name" type="text" id="stopName" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div>
+                    <label for="stopLat" class="block text-sm font-medium text-gray-700">Latitud</label>
+                    <input v-model.number="newStop.lat" type="number" step="any" id="stopLat" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div>
+                    <label for="stopLon" class="block text-sm font-medium text-gray-700">Longitud</label>
+                    <input v-model.number="newStop.lon" type="number" step="any" id="stopLon" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div class="flex justify-end space-x-4">
+                    <button @click="showCreateStopModal = false" type="button" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Crear</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Editar Ruta -->
+    <div v-if="showEditRouteModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
+        <div class="relative mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <h3 class="text-lg font-medium leading-6 text-gray-900">Editar Ruta</h3>
+            <form @submit.prevent="updateRoute" class="mt-2 space-y-4">
+                <div>
+                    <label for="editRouteName" class="block text-sm font-medium text-gray-700">Nombre de la Ruta</label>
+                    <input v-model="editingRoute.name" type="text" id="editRouteName" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div>
+                    <label for="editRouteColor" class="block text-sm font-medium text-gray-700">Color de la Ruta</label>
+                    <input v-model="editingRoute.color" type="color" id="editRouteColor" required class="w-full h-10 px-1 py-1 mt-1 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <!-- Add other fields for editing -->
+                <div class="flex justify-end space-x-4">
+                    <button @click="showEditRouteModal = false" type="button" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Actualizar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Editar Parada -->
+    <div v-if="showEditStopModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
+        <div class="relative mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <h3 class="text-lg font-medium leading-6 text-gray-900">Editar Parada</h3>
+            <form @submit.prevent="updateStop" class="mt-2 space-y-4">
+                <div>
+                    <label for="editStopName" class="block text-sm font-medium text-gray-700">Nombre de la Parada</label>
+                    <input v-model="editingStop.name" type="text" id="editStopName" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div>
+                    <label for="editStopLat" class="block text-sm font-medium text-gray-700">Latitud</label>
+                    <input v-model.number="editingStop.lat" type="number" step="any" id="editStopLat" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div>
+                    <label for="editStopLon" class="block text-sm font-medium text-gray-700">Longitud</label>
+                    <input v-model.number="editingStop.lon" type="number" step="any" id="editStopLon" required class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div class="flex justify-end space-x-4">
+                    <button @click="showEditStopModal = false" type="button" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Actualizar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endraw %}
+</div>
+
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% endblock %}
