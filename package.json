@@ -1,0 +1,31 @@
+{
+  "name": "combimap",
+  "version": "1.0.0",
+  "description": "<img width=\"1919\" height=\"862\" alt=\"image\" src=\"https://github.com/user-attachments/assets/fd6bf49f-e94b-446c-abd6-4770ae328102\" />\r <img width=\"1919\" height=\"858\" alt=\"image\" src=\"https://github.com/user-attachments/assets/239109c1-705e-49d9-bcbd-399e8907f008\" />",
+  "main": "index.js",
+  "scripts": {
+    "build": "postcss ./static/css/input.css -o ./static/css/output.css",
+    "watch": "postcss ./static/css/input.css -o ./static/css/output.css --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ItsLuisit0/CombiMap.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ItsLuisit0/CombiMap/issues"
+  },
+  "homepage": "https://github.com/ItsLuisit0/CombiMap#readme",
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.18"
+  },
+  "dependencies": {
+    "animejs": "^4.2.2",
+    "postcss-cli": "^11.0.1"
+  }
+}
