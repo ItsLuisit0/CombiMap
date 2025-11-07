@@ -1,8 +1,11 @@
-{% extends 'base.html' %}
-
-{% block title %}Panel de Administración{% endblock %}
-
-{% block head %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - CombiMap</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -10,52 +13,247 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
         .crosshair-cursor { cursor: crosshair; }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .stat-card-blue {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        .stat-card-green {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+        .stat-card-purple {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
     </style>
-{% endblock %}
+</head>
+<body class="bg-gray-50">
 
-{% block content %}
+<!-- Navbar Moderno -->
+<nav class="gradient-bg text-white shadow-2xl fixed w-full top-0 z-50">
+    <div class="container mx-auto px-6 py-5">
+        <div class="flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <div class="bg-white bg-opacity-20 p-3 rounded-xl backdrop-blur-sm">
+                    <i class="fa-solid fa-map-location-dot text-3xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight">CombiMap</h1>
+                    <p class="text-xs text-white text-opacity-80">Panel de Administración</p>
+                </div>
+            </div>
+            <div class="flex space-x-8">
+                <a href="/" class="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-white hover:bg-opacity-10 transition">
+                    <i class="fa-solid fa-home"></i>
+                    <span class="font-medium">Inicio</span>
+                </a>
+                <a href="/admin/dashboard" class="flex items-center space-x-2 px-3 py-2 rounded-lg bg-white bg-opacity-20">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span class="font-medium">Dashboard</span>
+                </a>
+                <a href="/ver_rutas" class="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-white hover:bg-opacity-10 transition">
+                    <i class="fa-solid fa-route"></i>
+                    <span class="font-medium">Rutas</span>
+                </a>
+                <a href="/map" class="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-white hover:bg-opacity-10 transition">
+                    <i class="fa-solid fa-map"></i>
+                    <span class="font-medium">Mapa</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</nav>
+
 <div id="app" class="pt-24">
 {% raw %}
-    <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-2 rounded-2xl shadow-lg overflow-hidden">
-                <div id="map" class="w-full h-[85vh]"></div>
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Tarjetas de Estadísticas -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <!-- Tarjeta Rutas -->
+            <div class="stat-card rounded-2xl p-6 text-white card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-white text-opacity-80 text-sm font-medium">Total Rutas</p>
+                        <h3 class="text-4xl font-bold mt-2">{{ routes.length }}</h3>
+                    </div>
+                    <div class="bg-white bg-opacity-20 p-4 rounded-xl">
+                        <i class="fa-solid fa-route text-3xl"></i>
+                    </div>
+                </div>
             </div>
-            <div class="lg:col-span-1 bg-white rounded-2xl shadow-lg p-6 h-max space-y-6">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-xl font-bold">Panel de Administración</h2>
-                    <button @click="logout" class="text-sm font-medium text-red-600 hover:text-red-800">Cerrar Sesión</button>
+            
+            <!-- Tarjeta Paradas -->
+            <div class="stat-card-blue rounded-2xl p-6 text-white card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-white text-opacity-80 text-sm font-medium">Total Paradas</p>
+                        <h3 class="text-4xl font-bold mt-2">{{ stops.length }}</h3>
+                    </div>
+                    <div class="bg-white bg-opacity-20 p-4 rounded-xl">
+                        <i class="fa-solid fa-map-pin text-3xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tarjeta Rutas Activas -->
+            <div class="stat-card-green rounded-2xl p-6 text-white card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-white text-opacity-80 text-sm font-medium">Rutas Activas</p>
+                        <h3 class="text-4xl font-bold mt-2">{{ routes.length }}</h3>
+                    </div>
+                    <div class="bg-white bg-opacity-20 p-4 rounded-xl">
+                        <i class="fa-solid fa-check-circle text-3xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tarjeta Sistema -->
+            <div class="stat-card-purple rounded-2xl p-6 text-white card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-white text-opacity-80 text-sm font-medium">Estado Sistema</p>
+                        <h3 class="text-2xl font-bold mt-2">Operativo</h3>
+                    </div>
+                    <div class="bg-white bg-opacity-20 p-4 rounded-xl">
+                        <i class="fa-solid fa-server text-3xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 rounded-2xl shadow-xl overflow-hidden">
+                <div id="map" class="w-full h-[70vh]"></div>
+            </div>
+            <div class="lg:col-span-1 bg-white rounded-2xl shadow-xl p-6 h-max space-y-6">
+                <div class="flex justify-between items-center pb-4 border-b">
+                    <h2 class="text-2xl font-bold text-gray-800">Gestión</h2>
+                    <button @click="logout" class="text-sm font-medium px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition">
+                        <i class="fa-solid fa-sign-out-alt mr-2"></i>Cerrar Sesión
+                    </button>
+                </div>
+
+                <!-- Importar KML -->
+                <div class="border-2 border-dashed border-blue-300 rounded-xl p-4 bg-blue-50">
+                    <h3 class="text-lg font-bold mb-3 text-blue-800 flex items-center">
+                        <i class="fa-solid fa-file-import mr-2"></i>Importar desde KML
+                    </h3>
+                    
+                    <input type="file" ref="kmlFileInput" @change="handleFileSelect" accept=".kml,.kmz" class="hidden" id="kmlFile">
+                    
+                    <label for="kmlFile" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 cursor-pointer flex items-center justify-center transition-colors">
+                        <i class="fa-solid fa-folder-open mr-2"></i>Seleccionar Archivo KML
+                    </label>
+                    
+                    <div v-if="selectedFile" class="mt-3 p-3 bg-white rounded-lg border border-blue-200">
+                        <p class="text-sm text-gray-700 font-medium flex items-center">
+                            <i class="fa-solid fa-file-code mr-2 text-blue-600"></i>{{ selectedFile.name }}
+                        </p>
+                        <p class="text-xs text-gray-500 mt-1">{{ (selectedFile.size / 1024).toFixed(2) }} KB</p>
+                    </div>
+                    
+                    <button @click="uploadKML" :disabled="!selectedFile || isUploading" 
+                            :style="selectedFile && !isUploading ? 'background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%); color: white; transform: scale(1);' : 'background: #d1d5db; color: #6b7280; cursor: not-allowed;'"
+                            class="mt-3 w-full py-3 px-4 rounded-lg font-bold flex items-center justify-center transition-all shadow-lg hover:shadow-2xl"
+                            @mouseenter="selectedFile && !isUploading ? $event.target.style.transform = 'scale(1.05)' : ''"
+                            @mouseleave="$event.target.style.transform = 'scale(1)'">
+                        <i class="fa-solid mr-2 text-lg" :class="isUploading ? 'fa-spinner fa-spin' : 'fa-cloud-arrow-up'"></i>
+                        <span class="text-base">{{ isUploading ? 'Procesando...' : (selectedFile ? '🚀 Importar Datos' : 'Selecciona un archivo primero') }}</span>
+                    </button>
+                    
+                    <p class="mt-2 text-xs text-gray-500 text-center">
+                        <i class="fa-solid fa-info-circle mr-1"></i>Archivos KML o KMZ (max 16 MB)
+                    </p>
+                    
+                    <!-- Botón de corrección temporal -->
+                    <button @click="fixRouteStops" 
+                            style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;"
+                            class="mt-3 w-full py-2.5 px-4 rounded-lg font-semibold flex items-center justify-center transition-all shadow-md hover:shadow-xl transform hover:scale-105">
+                        <i class="fa-solid fa-link mr-2"></i>
+                        <span>⚡ Asociar Paradas con Rutas</span>
+                    </button>
+                    <p class="mt-1 text-xs text-gray-500 text-center">
+                        <i class="fa-solid fa-info-circle mr-1"></i>Usa esto si las paradas no aparecen en las rutas
+                    </p>
                 </div>
 
                 <!-- Gestión de Rutas -->
-                <div>
-                    <h3 class="text-lg font-bold mb-2">Rutas</h3>
-                    <ul>
-                        <li v-for="route in routes" :key="route.id" class="flex items-center justify-between p-2 rounded-md hover:bg-gray-100">
-                            <span>{{ route.name }}</span>
-                            <div>
-                                <button @click="editRoute(route)" class="text-blue-600 hover:text-blue-800">Editar</button>
-                                <button @click="deleteRoute(route.id)" class="text-red-600 hover:text-red-800 ml-2">Eliminar</button>
+                <div class="bg-gradient-to-br from-pink-50 to-purple-50 p-4 rounded-xl border border-purple-100">
+                    <h3 class="text-lg font-bold mb-3 text-purple-800 flex items-center">
+                        <i class="fa-solid fa-route mr-2"></i>
+                        Rutas ({{ routes.length }})
+                    </h3>
+                    <div v-if="routes.length === 0" class="text-gray-500 text-sm italic p-4 text-center bg-white rounded-lg">
+                        <i class="fa-solid fa-inbox text-3xl text-gray-300 mb-2"></i>
+                        <p>No hay rutas. Importa un archivo KML o dibuja una nueva ruta.</p>
+                    </div>
+                    <ul v-else class="max-h-48 overflow-y-auto space-y-2">
+                        <li v-for="route in routes" :key="route.id" class="flex items-center justify-between p-3 rounded-lg hover:bg-white bg-white bg-opacity-70 transition-all shadow-sm hover:shadow-md">
+                            <span class="flex items-center font-medium">
+                                <span class="w-4 h-4 rounded-full mr-3 shadow-sm" :style="{ backgroundColor: route.color }"></span>
+                                {{ route.name }}
+                            </span>
+                            <div class="flex space-x-2">
+                                <button @click="editRoute(route)" class="text-blue-600 hover:text-blue-800 font-medium text-sm">
+                                    <i class="fa-solid fa-edit"></i>
+                                </button>
+                                <button @click="deleteRoute(route.id)" class="text-red-600 hover:text-red-800 font-medium text-sm">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
                             </div>
                         </li>
                     </ul>
-                    <button @click="enterDrawMode" class="mt-4 w-full bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600">Dibujar Nueva Ruta</button>
+                    <button @click="enterDrawMode" 
+                            style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white;"
+                            class="mt-4 w-full py-2.5 px-4 rounded-lg font-semibold hover:shadow-lg transition-all transform hover:scale-105">
+                        <i class="fa-solid fa-pencil mr-2"></i>Dibujar Nueva Ruta
+                    </button>
                 </div>
 
                 <!-- Gestión de Paradas -->
-                <div>
-                    <h3 class="text-lg font-bold mb-2">Paradas</h3>
-                    <ul>
-                        <li v-for="stop in stops" :key="stop.id" class="flex items-center justify-between p-2 rounded-md hover:bg-gray-100">
-                            <span>{{ stop.name }}</span>
-                            <div>
-                                <button @click="editStop(stop)" class="text-blue-600 hover:text-blue-800">Editar</button>
-                                <button @click="deleteStop(stop.id)" class="text-red-600 hover:text-red-800 ml-2">Eliminar</button>
+                <div class="bg-gradient-to-br from-blue-50 to-cyan-50 p-4 rounded-xl border border-blue-100">
+                    <h3 class="text-lg font-bold mb-3 text-blue-800 flex items-center">
+                        <i class="fa-solid fa-map-pin mr-2"></i>
+                        Paradas ({{ stops.length }})
+                    </h3>
+                    <div v-if="stops.length === 0" class="text-gray-500 text-sm italic p-4 text-center bg-white rounded-lg">
+                        <i class="fa-solid fa-inbox text-3xl text-gray-300 mb-2"></i>
+                        <p>No hay paradas. Importa un archivo KML o crea una nueva parada.</p>
+                    </div>
+                    <ul v-else class="max-h-48 overflow-y-auto space-y-2">
+                        <li v-for="stop in stops" :key="stop.id" class="flex items-center justify-between p-3 rounded-lg hover:bg-white bg-white bg-opacity-70 transition-all shadow-sm hover:shadow-md">
+                            <span class="font-medium">{{ stop.name }}</span>
+                            <div class="flex space-x-2">
+                                <button @click="editStop(stop)" class="text-blue-600 hover:text-blue-800 font-medium text-sm">
+                                    <i class="fa-solid fa-edit"></i>
+                                </button>
+                                <button @click="deleteStop(stop.id)" class="text-red-600 hover:text-red-800 font-medium text-sm">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
                             </div>
                         </li>
                     </ul>
-                    <button @click="enterPlaceStopMode" class="mt-4 w-full bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600">Colocar Nueva Parada en el Mapa</button>
-                    <button @click="showCreateStopModal = true" class="mt-2 w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600">Crear Parada Manualmente</button>
+                    <button @click="enterPlaceStopMode" 
+                            style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;"
+                            class="mt-4 w-full py-2.5 px-4 rounded-lg font-semibold hover:shadow-lg transition-all transform hover:scale-105">
+                        <i class="fa-solid fa-map-marker-alt mr-2"></i>Colocar Parada en Mapa
+                    </button>
+                    <button @click="showCreateStopModal = true" 
+                            style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;"
+                            class="mt-2 w-full py-2.5 px-4 rounded-lg font-semibold hover:shadow-lg transition-all transform hover:scale-105">
+                        <i class="fa-solid fa-plus mr-2"></i>Crear Parada Manualmente
+                    </button>
                 </div>
             </div>
         </div>
@@ -153,8 +351,78 @@
             </form>
         </div>
     </div>
+
+    <!-- Modal de Resultados de Importación -->
+    <div v-if="showImportResults" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+        <div class="relative mx-auto p-6 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-2xl font-bold text-gray-900">Resultados de Importación</h3>
+                <button @click="showImportResults = false" class="text-gray-500 hover:text-gray-700">
+                    <i class="fa-solid fa-times fa-lg"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <!-- Resumen -->
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h4 class="font-bold text-green-800 mb-2"><i class="fa-solid fa-check-circle mr-2"></i>Importación Exitosa</h4>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <p class="text-gray-600">Rutas importadas:</p>
+                            <p class="text-2xl font-bold text-green-700">{{ importResults.routes_imported }}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600">Paradas importadas:</p>
+                            <p class="text-2xl font-bold text-green-700">{{ importResults.stops_imported }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rutas importadas -->
+                <div v-if="importResults.routes && importResults.routes.length > 0">
+                    <h4 class="font-bold text-gray-800 mb-2">Rutas Importadas:</h4>
+                    <ul class="space-y-1 max-h-40 overflow-y-auto bg-gray-50 p-3 rounded-md">
+                        <li v-for="route in importResults.routes" :key="route.id" class="text-sm flex items-center">
+                            <span class="w-4 h-4 rounded-full mr-2" :style="{ backgroundColor: route.color }"></span>
+                            <i class="fa-solid fa-route mr-2 text-blue-500"></i>
+                            {{ route.name }} (ID: {{ route.id }})
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Paradas importadas -->
+                <div v-if="importResults.stops && importResults.stops.length > 0">
+                    <h4 class="font-bold text-gray-800 mb-2">Paradas Importadas:</h4>
+                    <ul class="space-y-1 max-h-40 overflow-y-auto bg-gray-50 p-3 rounded-md">
+                        <li v-for="stop in importResults.stops" :key="stop.id" class="text-sm">
+                            <i class="fa-solid fa-map-marker-alt mr-2 text-red-500"></i>
+                            {{ stop.name }} (ID: {{ stop.id }})
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Errores -->
+                <div v-if="importResults.errors && importResults.errors.length > 0" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <h4 class="font-bold text-yellow-800 mb-2"><i class="fa-solid fa-exclamation-triangle mr-2"></i>Advertencias:</h4>
+                    <ul class="space-y-1 max-h-40 overflow-y-auto text-sm">
+                        <li v-for="(error, index) in importResults.errors" :key="index" class="text-yellow-700">
+                            • {{ error }}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end">
+                <button @click="showImportResults = false; fetchRoutes(); fetchStops();" class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
 {% endraw %}
 </div>
 
 <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
-{% endblock %}
+
+</body>
+</html>

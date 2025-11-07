@@ -1,0 +1,106 @@
+{% extends "base_admin.html" %}
+
+{% block titulo_pagina %}Gestión de Rutas{% endblock %}
+
+{% block contenido %}
+<div class="mb-6">
+    <h2 class="text-3xl font-bold text-gray-800">
+        <i class="fa-solid fa-route mr-2"></i>Gestión de Rutas
+    </h2>
+</div>
+
+<div class="bg-white rounded-lg shadow-md p-6">
+    <!-- Botón para crear nueva ruta -->
+    <div class="mb-6 flex justify-between items-center">
+        <h3 class="text-xl font-semibold text-gray-700">
+            <i class="fa-solid fa-list mr-2"></i>Lista de Rutas
+        </h3>
+        <a href="{{ url_for('nueva_ruta') }}" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition flex items-center">
+            <i class="fa-solid fa-plus mr-2"></i>Nueva Ruta
+        </a>
+    </div>
+
+    {% if rutas %}
+    <!-- Tabla de Rutas -->
+    <div class="overflow-x-auto">
+        <table class="min-w-full bg-white border border-gray-200">
+            <thead class="bg-gray-100">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">ID</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Nombre</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Color</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Horario</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Costo</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Estado</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Puntos</th>
+                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">Acciones</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for ruta in rutas %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ ruta.id }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <span class="inline-block w-4 h-4 rounded-full mr-2" style="background-color: {{ ruta.color }}"></span>
+                            <span class="text-sm font-medium text-gray-900">{{ ruta.nombre }}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 text-xs font-semibold rounded" style="background-color: {{ ruta.color }}20; color: {{ ruta.color }}">
+                            {{ ruta.color }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {% if ruta.horario_inicio and ruta.horario_fin %}
+                            {{ ruta.horario_inicio.strftime('%H:%M') }} - {{ ruta.horario_fin.strftime('%H:%M') }}
+                        {% else %}
+                            <span class="text-gray-400">No definido</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {% if ruta.costo %}
+                            ${{ "%.2f"|format(ruta.costo) }}
+                        {% else %}
+                            <span class="text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if ruta.activa %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded bg-green-100 text-green-800">
+                                <i class="fa-solid fa-check-circle mr-1"></i>Activa
+                            </span>
+                        {% else %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded bg-red-100 text-red-800">
+                                <i class="fa-solid fa-times-circle mr-1"></i>Inactiva
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {{ ruta.coordenadas|length }} puntos
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                        <a href="{{ url_for('editar_ruta', id=ruta.id) }}" class="text-blue-600 hover:text-blue-900 mr-3" title="Editar">
+                            <i class="fa-solid fa-edit"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <!-- Mensaje si no hay rutas -->
+    <div class="text-center py-12">
+        <i class="fa-solid fa-route text-6xl text-gray-300 mb-4"></i>
+        <p class="text-gray-500 text-lg mb-4">No hay rutas registradas</p>
+        <a href="{{ url_for('nueva_ruta') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition inline-block">
+            <i class="fa-solid fa-plus mr-2"></i>Crear Primera Ruta
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

@@ -1,16 +1,26 @@
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, send_from_directory, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 import urllib.request
 import json
-from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 import datetime
 from functools import wraps
+import os
+from xml.etree import ElementTree as ET
+import re
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = '¡cambia_este_secreto_por_algo_seguro!'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:root@localhost/MiCombiBackend'
+app.config['SECRET_KEY'] = 'combimap_secret_key_2025'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root@localhost/MiCombiBackend'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['ALLOWED_EXTENSIONS'] = {'kml', 'kmz'}
+
+# Crear carpeta de uploads si no existe
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
 db = SQLAlchemy(app)
 
 # --- Modelos de la Base de Datos ---
@@ -139,11 +149,30 @@ def get_routes():
     rutas_data = []
     for ruta in rutas:
         coordenadas = [[float(c.latitud), float(c.longitud)] for c in ruta.coordenadas]
+        
+        # Obtener paradas asociadas a la ruta
         paradas = [{
             'name': p.parada.nombre,
             'lat': float(p.parada.latitud),
             'lon': float(p.parada.longitud)
         } for p in ruta.paradas]
+        
+        # Si no hay paradas pero sí coordenadas, crear paradas virtuales desde las coordenadas
+        if not paradas and coordenadas:
+            # Parada de inicio (primera coordenada)
+            if len(coordenadas) > 0:
+                paradas.append({
+                    'name': f'Inicio: {ruta.nombre}',
+                    'lat': coordenadas[0][0],
+                    'lon': coordenadas[0][1]
+                })
+            # Parada de fin (última coordenada)
+            if len(coordenadas) > 1:
+                paradas.append({
+                    'name': f'Final: {ruta.nombre}',
+                    'lat': coordenadas[-1][0],
+                    'lon': coordenadas[-1][1]
+                })
         
         rutas_data.append({
             'id': ruta.id,
@@ -386,6 +415,488 @@ def remove_stop_from_route(current_user, route_id, stop_id):
     db.session.delete(route_stop)
     db.session.commit()
     return jsonify({'message': 'Stop removed from route!'})
+
+# --- Funciones Auxiliares para KML ---
+
+def allowed_file(filename):
+    """Verifica si el archivo tiene una extensión permitida"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+def parse_color_from_kml(kml_color):
+    """Convierte color KML (aabbggrr) a formato web (#rrggbb)"""
+    if not kml_color or len(kml_color) < 6:
+        return '#FF0000'
+    try:
+        bb = kml_color[-2:]
+        gg = kml_color[-4:-2]
+        rr = kml_color[-6:-4]
+        return f'#{rr}{gg}{bb}'.upper()
+    except:
+        return '#FF0000'
+
+def parse_coordinates(coord_string):
+    """Parsea cadena de coordenadas KML"""
+    coordinates = []
+    coord_string = coord_string.strip()
+    points = re.split(r'\s+', coord_string)
+    
+    for point in points:
+        if not point:
+            continue
+        parts = point.split(',')
+        if len(parts) >= 2:
+            try:
+                lon = float(parts[0])
+                lat = float(parts[1])
+                coordinates.append([lat, lon])
+            except ValueError:
+                continue
+    
+    return coordinates
+
+def extract_placemarks_from_kml(kml_file_path):
+    """Extrae placemarks del archivo KML"""
+    KML_NAMESPACE = {
+        'kml': 'http://www.opengis.net/kml/2.2',
+        'gx': 'http://www.google.com/kml/ext/2.2'
+    }
+    
+    try:
+        tree = ET.parse(kml_file_path)
+        root = tree.getroot()
+        placemarks = []
+        
+        for placemark in root.findall('.//kml:Placemark', KML_NAMESPACE):
+            data = {
+                'name': None,
+                'description': None,
+                'color': '#FF0000',
+                'type': None,
+                'coordinates': []
+            }
+            
+            # Nombre
+            name_elem = placemark.find('kml:name', KML_NAMESPACE)
+            if name_elem is not None and name_elem.text:
+                data['name'] = name_elem.text.strip()
+            
+            # Descripción
+            desc_elem = placemark.find('kml:description', KML_NAMESPACE)
+            if desc_elem is not None and desc_elem.text:
+                data['description'] = desc_elem.text.strip()
+            
+            # Color desde LineStyle
+            line_style = placemark.find('.//kml:LineStyle/kml:color', KML_NAMESPACE)
+            if line_style is not None and line_style.text:
+                data['color'] = parse_color_from_kml(line_style.text)
+            
+            # Color desde PolyStyle
+            poly_style = placemark.find('.//kml:PolyStyle/kml:color', KML_NAMESPACE)
+            if poly_style is not None and poly_style.text:
+                data['color'] = parse_color_from_kml(poly_style.text)
+            
+            # LineString (rutas de Google My Maps)
+            linestring = placemark.find('.//kml:LineString/kml:coordinates', KML_NAMESPACE)
+            if linestring is not None and linestring.text:
+                data['type'] = 'LineString'
+                data['coordinates'] = parse_coordinates(linestring.text)
+            
+            # gx:Track (rutas de GPS Tracker como Geo Tracker)
+            gx_track = placemark.find('.//gx:Track', KML_NAMESPACE)
+            if gx_track is not None and not data['coordinates']:
+                track_coords = []
+                for coord_elem in gx_track.findall('gx:coord', KML_NAMESPACE):
+                    if coord_elem.text:
+                        parts = coord_elem.text.strip().split()
+                        if len(parts) >= 2:
+                            try:
+                                lon = float(parts[0])
+                                lat = float(parts[1])
+                                track_coords.append([lat, lon])
+                            except ValueError:
+                                continue
+                if track_coords:
+                    data['type'] = 'LineString'
+                    data['coordinates'] = track_coords
+            
+            # MultiTrack (para tracks GPS con múltiples segmentos)
+            multi_track = placemark.find('.//gx:MultiTrack', KML_NAMESPACE)
+            if multi_track is not None and not data['coordinates']:
+                all_track_coords = []
+                for track in multi_track.findall('.//gx:Track', KML_NAMESPACE):
+                    for coord_elem in track.findall('gx:coord', KML_NAMESPACE):
+                        if coord_elem.text:
+                            parts = coord_elem.text.strip().split()
+                            if len(parts) >= 2:
+                                try:
+                                    lon = float(parts[0])
+                                    lat = float(parts[1])
+                                    all_track_coords.append([lat, lon])
+                                except ValueError:
+                                    continue
+                if all_track_coords:
+                    data['type'] = 'LineString'
+                    data['coordinates'] = all_track_coords
+            
+            # Point (paradas)
+            point = placemark.find('.//kml:Point/kml:coordinates', KML_NAMESPACE)
+            if point is not None and point.text:
+                data['type'] = 'Point'
+                coords = parse_coordinates(point.text)
+                if coords:
+                    data['coordinates'] = coords[0]
+            
+            # MultiGeometry
+            multi_geom = placemark.find('.//kml:MultiGeometry', KML_NAMESPACE)
+            if multi_geom is not None and not data['coordinates']:
+                all_coords = []
+                for line in multi_geom.findall('.//kml:LineString/kml:coordinates', KML_NAMESPACE):
+                    if line.text:
+                        all_coords.extend(parse_coordinates(line.text))
+                if all_coords:
+                    data['type'] = 'LineString'
+                    data['coordinates'] = all_coords
+            
+            if data['name'] and data['coordinates']:
+                placemarks.append(data)
+        
+        return placemarks
+    except Exception as e:
+        print(f"Error al parsear KML: {e}")
+        return []
+
+def process_kml_data(placemarks):
+    """Procesa los placemarks y los guarda en la base de datos"""
+    results = {
+        'routes_imported': 0,
+        'stops_imported': 0,
+        'routes': [],
+        'stops': [],
+        'errors': []
+    }
+    
+    try:
+        # Separar rutas y paradas
+        routes = [p for p in placemarks if p['type'] == 'LineString']
+        stops = [p for p in placemarks if p['type'] == 'Point']
+        
+        # Primero importar rutas
+        route_id_map = {}
+        for placemark in routes:
+            try:
+                new_route = Ruta(
+                    nombre=placemark['name'],
+                    color=placemark['color'],
+                    descripcion=placemark.get('description', ''),
+                    costo=8.00,
+                    activa=True
+                )
+                db.session.add(new_route)
+                db.session.flush()
+                
+                # Guardar el ID de la ruta para asociarla con paradas
+                route_id_map[placemark['name']] = new_route.id
+                
+                # Agregar coordenadas
+                for i, coord in enumerate(placemark['coordinates']):
+                    new_coord = RutaCoordenada(
+                        ruta_id=new_route.id,
+                        latitud=coord[0],
+                        longitud=coord[1],
+                        orden=i
+                    )
+                    db.session.add(new_coord)
+                
+                db.session.commit()
+                results['routes_imported'] += 1
+                results['routes'].append({
+                    'id': new_route.id,
+                    'name': new_route.nombre,
+                    'color': new_route.color
+                })
+            except Exception as e:
+                db.session.rollback()
+                results['errors'].append(f"Error al importar ruta '{placemark['name']}': {str(e)}")
+        
+        # Luego importar paradas y asociarlas
+        stop_id_map = {}
+        for orden, placemark in enumerate(stops):
+            try:
+                # Verificar si ya existe una parada cercana (mismo nombre o coordenadas similares)
+                existing_stop = Parada.query.filter(
+                    db.or_(
+                        Parada.nombre == placemark['name'],
+                        db.and_(
+                            db.func.abs(Parada.latitud - placemark['coordinates'][0]) < 0.0001,
+                            db.func.abs(Parada.longitud - placemark['coordinates'][1]) < 0.0001
+                        )
+                    )
+                ).first()
+                
+                if existing_stop:
+                    # Usar la parada existente
+                    stop_id_map[placemark['name']] = existing_stop.id
+                    results['errors'].append(f"Parada '{placemark['name']}' ya existe (ID: {existing_stop.id}), se reutilizará")
+                else:
+                    # Crear nueva parada
+                    new_stop = Parada(
+                        nombre=placemark['name'],
+                        latitud=placemark['coordinates'][0],
+                        longitud=placemark['coordinates'][1],
+                        descripcion=placemark.get('description', ''),
+                        tipo='secundaria'
+                    )
+                    db.session.add(new_stop)
+                    db.session.flush()
+                    
+                    stop_id_map[placemark['name']] = new_stop.id
+                    results['stops_imported'] += 1
+                    results['stops'].append({
+                        'id': new_stop.id,
+                        'name': new_stop.nombre
+                    })
+                
+                # Asociar parada con TODAS las rutas del KML
+                for route_name, route_id in route_id_map.items():
+                    # Verificar que no exista ya la asociación
+                    existing_relation = RutaParada.query.filter_by(
+                        ruta_id=route_id,
+                        parada_id=stop_id_map[placemark['name']]
+                    ).first()
+                    
+                    if not existing_relation:
+                        ruta_parada = RutaParada(
+                            ruta_id=route_id,
+                            parada_id=stop_id_map[placemark['name']],
+                            orden=orden
+                        )
+                        db.session.add(ruta_parada)
+                
+                db.session.commit()
+                
+            except Exception as e:
+                db.session.rollback()
+                results['errors'].append(f"Error al importar parada '{placemark['name']}': {str(e)}")
+        
+        return results
+    except Exception as e:
+        results['errors'].append(f"Error general: {str(e)}")
+        return results
+
+# --- API para Importar KML ---
+
+@app.route('/api/admin/import-kml', methods=['POST'])
+@token_required
+def import_kml(current_user):
+    """Endpoint para subir y procesar archivos KML"""
+    if 'file' not in request.files:
+        return jsonify({'message': 'No se envió ningún archivo'}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({'message': 'No se seleccionó ningún archivo'}), 400
+    
+    if not allowed_file(file.filename):
+        return jsonify({'message': 'Tipo de archivo no permitido. Solo KML o KMZ'}), 400
+    
+    try:
+        # Guardar archivo
+        filename = secure_filename(file.filename)
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{timestamp}_{filename}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        
+        # Extraer datos del KML
+        placemarks = extract_placemarks_from_kml(filepath)
+        
+        if not placemarks:
+            os.remove(filepath)
+            return jsonify({'message': 'No se encontraron elementos válidos en el archivo KML'}), 400
+        
+        # Procesar datos
+        results = process_kml_data(placemarks)
+        
+        # Opcional: eliminar archivo después de procesar
+        # os.remove(filepath)
+        
+        return jsonify({
+            'message': 'Archivo KML procesado exitosamente',
+            'routes_imported': results['routes_imported'],
+            'stops_imported': results['stops_imported'],
+            'routes': results['routes'],
+            'stops': results['stops'],
+            'errors': results['errors']
+        }), 200
+    
+    except Exception as e:
+        return jsonify({'message': f'Error al procesar el archivo: {str(e)}'}), 500
+
+# ===================================================
+# ENDPOINT TEMPORAL: Asociar paradas existentes con rutas
+# ===================================================
+
+@app.route('/api/admin/fix-route-stops', methods=['POST'])
+@token_required
+def fix_route_stops(current_user):
+    """Asocia las paradas existentes con las rutas (arregla importaciones anteriores)"""
+    try:
+        # Obtener todas las rutas y paradas
+        rutas = Ruta.query.all()
+        paradas = Parada.query.all()
+        
+        results = {
+            'associations_created': 0,
+            'details': []
+        }
+        
+        # Para cada ruta, asociar TODAS las paradas en orden
+        for ruta in rutas:
+            # Verificar si ya tiene paradas asociadas
+            existing_count = RutaParada.query.filter_by(ruta_id=ruta.id).count()
+            
+            if existing_count > 0:
+                results['details'].append(f"Ruta '{ruta.nombre}' ya tiene {existing_count} paradas, saltando...")
+                continue
+            
+            # Asociar todas las paradas con esta ruta
+            for orden, parada in enumerate(paradas):
+                ruta_parada = RutaParada(
+                    ruta_id=ruta.id,
+                    parada_id=parada.id,
+                    orden=orden
+                )
+                db.session.add(ruta_parada)
+                results['associations_created'] += 1
+            
+            results['details'].append(f"Ruta '{ruta.nombre}' asociada con {len(paradas)} paradas")
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Asociaciones creadas exitosamente',
+            'associations_created': results['associations_created'],
+            'details': results['details']
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': f'Error: {str(e)}'}), 500
+
+# ===================================================
+# SECCIÓN: PANEL DE ADMINISTRACIÓN CRUD (Rutas y Puntos)
+# ===================================================
+
+@app.route('/ver_rutas')
+def ver_rutas():
+    """Paso 1 READ: Listar todas las rutas"""
+    rutas = Ruta.query.all()
+    return render_template('rutas.html', rutas=rutas)
+
+@app.route('/nueva_ruta', methods=['GET', 'POST'])
+def nueva_ruta():
+    """Paso 2 CREATE: Crear nueva ruta"""
+    if request.method == 'POST':
+        # Obtener datos del formulario
+        nombre = request.form.get('nombre')
+        color = request.form.get('color')
+        descripcion = request.form.get('descripcion', '')
+        horario_inicio = request.form.get('horario_inicio')
+        horario_fin = request.form.get('horario_fin')
+        costo = request.form.get('costo')
+        activa = request.form.get('activa') == '1'
+        
+        # Crear nueva ruta
+        nueva = Ruta(
+            nombre=nombre,
+            color=color,
+            descripcion=descripcion if descripcion else None,
+            horario_inicio=horario_inicio if horario_inicio else None,
+            horario_fin=horario_fin if horario_fin else None,
+            costo=float(costo) if costo else None,
+            activa=activa
+        )
+        
+        # Guardar en la base de datos
+        db.session.add(nueva)
+        db.session.commit()
+        
+        # Redirigir a la página de edición para agregar puntos
+        return redirect(url_for('editar_ruta', id=nueva.id))
+    
+    # GET: Mostrar formulario
+    return render_template('formulario_ruta.html')
+
+@app.route('/editar_ruta/<int:id>', methods=['GET', 'POST'])
+def editar_ruta(id):
+    """Paso 3 UPDATE: Vista Maestro-Detalle para editar ruta"""
+    ruta = Ruta.query.get_or_404(id)
+    
+    if request.method == 'POST':
+        # Actualizar datos de la ruta
+        ruta.nombre = request.form.get('nombre')
+        ruta.color = request.form.get('color')
+        ruta.descripcion = request.form.get('descripcion', '')
+        
+        horario_inicio = request.form.get('horario_inicio')
+        horario_fin = request.form.get('horario_fin')
+        costo = request.form.get('costo')
+        
+        ruta.horario_inicio = horario_inicio if horario_inicio else None
+        ruta.horario_fin = horario_fin if horario_fin else None
+        ruta.costo = float(costo) if costo else None
+        ruta.activa = request.form.get('activa') == '1'
+        
+        # Guardar cambios
+        db.session.commit()
+        
+        # Redirigir a la misma página
+        return redirect(url_for('editar_ruta', id=id))
+    
+    # GET: Mostrar formulario de edición con puntos
+    return render_template('editar_ruta.html', ruta=ruta)
+
+@app.route('/agregar_punto/<int:id_ruta>', methods=['POST'])
+def agregar_punto(id_ruta):
+    """Paso 4 CREATE: Agregar punto de trazado a una ruta"""
+    # Obtener datos del formulario
+    latitud = request.form.get('latitud')
+    longitud = request.form.get('longitud')
+    orden = request.form.get('orden')
+    
+    # Crear nuevo punto
+    nuevo_punto = RutaCoordenada(
+        ruta_id=id_ruta,
+        latitud=float(latitud),
+        longitud=float(longitud),
+        orden=int(orden)
+    )
+    
+    # Guardar en la base de datos
+    db.session.add(nuevo_punto)
+    db.session.commit()
+    
+    # Redirigir de vuelta a la edición de la ruta
+    return redirect(url_for('editar_ruta', id=id_ruta))
+
+@app.route('/borrar_punto/<int:id_punto>', methods=['POST'])
+def borrar_punto(id_punto):
+    """Paso 4 DELETE: Borrar punto de trazado"""
+    # Obtener el punto a borrar
+    punto = RutaCoordenada.query.get_or_404(id_punto)
+    
+    # Guardar el id_ruta antes de borrar
+    id_ruta = punto.ruta_id
+    
+    # Borrar y commit
+    db.session.delete(punto)
+    db.session.commit()
+    
+    # Redirigir de vuelta a la edición de la ruta
+    return redirect(url_for('editar_ruta', id=id_ruta))
+
+# FIN SECCIÓN CRUD
 
 if __name__ == '__main__':
     with app.app_context():

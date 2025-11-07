@@ -10,8 +10,18 @@ const app = createApp({
             showCreateStopModal: false,
             showEditRouteModal: false,
             showEditStopModal: false,
+            showImportResults: false,
             isPlacingStop: false,
+            isUploading: false,
             drawControl: null,
+            selectedFile: null,
+            importResults: {
+                routes_imported: 0,
+                stops_imported: 0,
+                routes: [],
+                stops: [],
+                errors: []
+            },
             newRoute: {
                 name: '',
                 color: '#FF0000',
@@ -268,6 +278,97 @@ const app = createApp({
                 }
             } catch (error) {
                 console.error('Error actualizando la parada:', error);
+            }
+        },
+        handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                // Verificar extensión
+                const fileName = file.name.toLowerCase();
+                if (fileName.endsWith('.kml') || fileName.endsWith('.kmz')) {
+                    this.selectedFile = file;
+                } else {
+                    alert('Por favor selecciona un archivo KML o KMZ válido');
+                    event.target.value = '';
+                    this.selectedFile = null;
+                }
+            }
+        },
+        async uploadKML() {
+            if (!this.selectedFile) {
+                alert('Por favor selecciona un archivo primero');
+                return;
+            }
+
+            this.isUploading = true;
+
+            try {
+                const token = localStorage.getItem('token');
+                const formData = new FormData();
+                formData.append('file', this.selectedFile);
+
+                const response = await fetch('/api/admin/import-kml', {
+                    method: 'POST',
+                    headers: {
+                        'x-access-token': token,
+                    },
+                    body: formData,
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Mostrar resultados
+                    this.importResults = data;
+                    this.showImportResults = true;
+                    
+                    // Limpiar selección de archivo
+                    this.selectedFile = null;
+                    if (this.$refs.kmlFileInput) {
+                        this.$refs.kmlFileInput.value = '';
+                    }
+                    
+                    // Recargar listas
+                    await this.fetchRoutes();
+                    await this.fetchStops();
+                } else {
+                    alert(`Error: ${data.message || 'No se pudo importar el archivo'}`);
+                }
+            } catch (error) {
+                console.error('Error al subir archivo:', error);
+                alert('Error al subir el archivo. Por favor intenta de nuevo.');
+            } finally {
+                this.isUploading = false;
+            }
+        },
+        async fixRouteStops() {
+            if (!confirm('¿Deseas asociar todas las paradas con sus rutas? Esto es útil si importaste KML antiguos sin asociaciones.')) {
+                return;
+            }
+            
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('/api/admin/fix-route-stops', {
+                    method: 'POST',
+                    headers: {
+                        'x-access-token': token,
+                    },
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`✅ ${data.message}\n\nAsociaciones creadas: ${data.associations_created}\n\nDetalles:\n${data.details.join('\n')}`);
+                    
+                    // Recargar listas
+                    await this.fetchRoutes();
+                    await this.fetchStops();
+                } else {
+                    alert(`Error: ${data.message || 'No se pudieron crear las asociaciones'}`);
+                }
+            } catch (error) {
+                console.error('Error al asociar paradas:', error);
+                alert('Error al asociar paradas. Por favor intenta de nuevo.');
             }
         },
     }

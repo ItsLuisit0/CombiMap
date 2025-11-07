@@ -146,9 +146,18 @@
             drawRoute(route, highlightedStop = null) {
                 this.clearLayers();
                 const layers = [];
+                
+                // Dibujar la línea de la ruta
                 if (route.coordinates && route.coordinates.length > 0) {
-                    layers.push(L.polyline(route.coordinates, { color: route.color || '#FF0A0A', weight: 5, opacity: 0.8 }));
+                    const polyline = L.polyline(route.coordinates, { 
+                        color: route.color || '#FF0A0A', 
+                        weight: 5, 
+                        opacity: 0.8 
+                    });
+                    layers.push(polyline);
                 }
+                
+                // Dibujar las paradas
                 if (route.stops && route.stops.length > 0) {
                     route.stops.forEach((stop, index) => {
                         let icon, zIndexOffset = 0;
@@ -165,9 +174,15 @@
                         layers.push(L.marker([stop.lat, stop.lon], { icon, zIndexOffset }).bindPopup(stop.name));
                     });
                 }
+                
+                // Mostrar las capas en el mapa
                 if (layers.length > 0) {
                     this.routeLayer = L.featureGroup(layers).addTo(this.map);
                     this.map.fitBounds(this.routeLayer.getBounds(), { padding: [50, 50] });
+                } else if (route.coordinates && route.coordinates.length > 0) {
+                    // Si solo hay coordenadas sin paradas, centrar en las coordenadas
+                    const bounds = L.latLngBounds(route.coordinates);
+                    this.map.fitBounds(bounds, { padding: [50, 50] });
                 }
             },
             getCurrentLocation() {

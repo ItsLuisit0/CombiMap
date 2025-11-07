@@ -1,0 +1,205 @@
+{% extends "base_admin.html" %}
+
+{% block titulo_pagina %}Editar Ruta: {{ ruta.nombre }}{% endblock %}
+
+{% block contenido %}
+<div class="mb-6">
+    <a href="{{ url_for('ver_rutas') }}" class="text-blue-600 hover:text-blue-800 inline-block mb-4">
+        <i class="fa-solid fa-arrow-left mr-2"></i>Volver a Rutas
+    </a>
+    <h2 class="text-3xl font-bold text-gray-800">
+        <i class="fa-solid fa-edit mr-2"></i>Editar Ruta: {{ ruta.nombre }}
+    </h2>
+</div>
+
+<div class="max-w-6xl mx-auto">
+
+    <!-- SECCIÓN MAESTRO: Editar Ruta -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h3 class="text-xl font-semibold text-gray-700 mb-6">
+            <i class="fa-solid fa-info-circle mr-2"></i>Información de la Ruta
+        </h3>
+
+        <form method="POST" action="{{ url_for('editar_ruta', id=ruta.id) }}">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Nombre -->
+                <div class="mb-4">
+                    <label for="nombre" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fa-solid fa-route mr-1"></i>Nombre de la Ruta*
+                    </label>
+                    <input type="text" id="nombre" name="nombre" value="{{ ruta.nombre }}" required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+
+                <!-- Color -->
+                <div class="mb-4">
+                    <label for="color" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fa-solid fa-palette mr-1"></i>Color*
+                    </label>
+                    <div class="flex items-center space-x-4">
+                        <input type="color" id="color" name="color" value="{{ ruta.color }}" required
+                               class="h-12 w-20 border border-gray-300 rounded cursor-pointer">
+                        <span id="colorValue" class="text-sm text-gray-600">{{ ruta.color }}</span>
+                    </div>
+                </div>
+
+                <!-- Horario Inicio -->
+                <div class="mb-4">
+                    <label for="horario_inicio" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fa-solid fa-clock mr-1"></i>Horario Inicio
+                    </label>
+                    <input type="time" id="horario_inicio" name="horario_inicio" 
+                           value="{% if ruta.horario_inicio %}{{ ruta.horario_inicio.strftime('%H:%M') }}{% endif %}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+
+                <!-- Horario Fin -->
+                <div class="mb-4">
+                    <label for="horario_fin" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fa-solid fa-clock mr-1"></i>Horario Fin
+                    </label>
+                    <input type="time" id="horario_fin" name="horario_fin"
+                           value="{% if ruta.horario_fin %}{{ ruta.horario_fin.strftime('%H:%M') }}{% endif %}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+
+                <!-- Costo -->
+                <div class="mb-4">
+                    <label for="costo" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fa-solid fa-dollar-sign mr-1"></i>Costo
+                    </label>
+                    <input type="number" id="costo" name="costo" step="0.01" min="0"
+                           value="{% if ruta.costo %}{{ ruta.costo }}{% endif %}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+
+                <!-- Estado Activa -->
+                <div class="mb-4 flex items-center">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="activa" value="1" {% if ruta.activa %}checked{% endif %}
+                               class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                        <span class="ml-2 text-sm font-medium text-gray-700">
+                            <i class="fa-solid fa-check-circle mr-1"></i>Ruta Activa
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Descripción -->
+            <div class="mb-4">
+                <label for="descripcion" class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fa-solid fa-align-left mr-1"></i>Descripción
+                </label>
+                <textarea id="descripcion" name="descripcion" rows="3"
+                          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">{% if ruta.descripcion %}{{ ruta.descripcion }}{% endif %}</textarea>
+            </div>
+
+            <!-- Botón Actualizar Ruta -->
+            <div>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-lg transition">
+                    <i class="fa-solid fa-save mr-2"></i>Actualizar Ruta
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- SECCIÓN DETALLE: Puntos de Trazado -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-xl font-semibold text-gray-700 mb-6">
+            <i class="fa-solid fa-map-pin mr-2"></i>Puntos de Trazado
+            <span class="text-sm text-gray-500 ml-2">({{ ruta.coordenadas|length }} puntos)</span>
+        </h3>
+
+        <!-- Tabla de Puntos Existentes -->
+        {% if ruta.coordenadas %}
+        <div class="overflow-x-auto mb-6">
+            <table class="min-w-full bg-white border border-gray-200">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Orden</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Latitud</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase">Longitud</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-700 uppercase">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for punto in ruta.coordenadas %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm text-gray-900">{{ punto.orden }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700 font-mono">{{ "%.6f"|format(punto.latitud) }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-700 font-mono">{{ "%.6f"|format(punto.longitud) }}</td>
+                        <td class="px-4 py-3 text-center">
+                            <form method="POST" action="{{ url_for('borrar_punto', id_punto=punto.id) }}" 
+                                  onsubmit="return confirm('¿Estás seguro de eliminar este punto?');" class="inline">
+                                <button type="submit" class="text-red-600 hover:text-red-900" title="Eliminar">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-8 mb-6 bg-gray-50 rounded-lg">
+            <i class="fa-solid fa-map-pin text-4xl text-gray-300 mb-2"></i>
+            <p class="text-gray-500">No hay puntos de trazado aún. Agrega el primero abajo.</p>
+        </div>
+        {% endif %}
+
+        <!-- Formulario para Agregar Nuevo Punto -->
+        <div class="bg-blue-50 rounded-lg p-6 border-2 border-blue-200">
+            <h4 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fa-solid fa-plus-circle mr-2"></i>Agregar Nuevo Punto
+            </h4>
+            
+            <form method="POST" action="{{ url_for('agregar_punto', id_ruta=ruta.id) }}">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <!-- Latitud -->
+                    <div>
+                        <label for="latitud" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fa-solid fa-location-dot mr-1"></i>Latitud*
+                        </label>
+                        <input type="number" id="latitud" name="latitud" step="0.000001" required
+                               placeholder="19.123456"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+
+                    <!-- Longitud -->
+                    <div>
+                        <label for="longitud" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fa-solid fa-location-dot mr-1"></i>Longitud*
+                        </label>
+                        <input type="number" id="longitud" name="longitud" step="0.000001" required
+                               placeholder="-97.123456"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+
+                    <!-- Orden -->
+                    <div>
+                        <label for="orden" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fa-solid fa-sort-numeric-up mr-1"></i>Orden*
+                        </label>
+                        <input type="number" id="orden" name="orden" min="1" required
+                               value="{{ (ruta.coordenadas|length) + 1 }}"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition">
+                    <i class="fa-solid fa-plus mr-2"></i>Agregar Punto
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Actualizar visualización del color seleccionado
+    document.getElementById('color').addEventListener('input', function(e) {
+        document.getElementById('colorValue').textContent = e.target.value.toUpperCase();
+    });
+</script>
+{% endblock %}
+
